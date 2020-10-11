@@ -56,7 +56,7 @@ impl CPU {
 
     fn write_af(&mut self, val: u16) {
         self.a = (val >> 8) as u8;
-        self.f = (val & 0xf0) as u8;
+        self.f = (val & 0xf0) as u8; // only upper nibble used
     }
 
     fn write_bc(&mut self, val: u16) {
@@ -971,6 +971,178 @@ impl CPU {
                     12
                 }
             }
+            0xcb => self.cb(),
+            0xcc => {
+                if self.get_flag(Flag::Z) {
+                    self.call();
+                    24
+                } else {
+                    12
+                }
+            }
+            0xcd => {
+                self.call();
+                24
+            }
+            0xce => {
+                let d8 = self.fetch_byte();
+                self.add(d8, true);
+                8
+            }
+            0xcf => {
+                self.rst(0x08);
+                16
+            }
+            0xd0 => {
+                if !self.get_flag(Flag::C) {
+                    self.ret();
+                    20
+                } else {
+                    8
+                }
+            }
+            0xd1 => {
+                let poped = self.pop();
+                self.write_de(poped);
+                12
+            }
+            0xd2 => {
+                if !self.get_flag(Flag::C) {
+                    self.jp();
+                    16
+                } else {
+                    12
+                }
+            }
+            0xd4 => {
+                if !self.get_flag(Flag::C) {
+                    self.call();
+                    24
+                } else {
+                    12
+                }
+            }
+            0xd5 => {
+                self.push(self.read_de());
+                16
+            }
+            0xd6 => {
+                let d8 = self.fetch_byte();
+                self.sub(d8, false);
+                8
+            }
+            0xd7 => {
+                self.rst(0x10);
+                16
+            }
+            0xd8 => {
+                if self.get_flag(Flag::C) {
+                    self.ret();
+                    20
+                } else {
+                    8
+                }
+            }
+            0xd9 => {
+                self.ret();
+                self.ime = true;
+                16
+            }
+            0xda => {
+                if self.get_flag(Flag::C) {
+                    self.jp();
+                    16
+                } else {
+                    12
+                }
+            }
+            0xdc => {
+                if self.get_flag(Flag::C) {
+                    self.call();
+                    24
+                } else {
+                    12
+                }
+            }
+            0xde => {
+                let d8 = self.fetch_byte();
+                self.sub(d8, true);
+                8
+            }
+            0xdf => {
+                self.rst(0x18);
+                16
+            }
+            0xe0 => {
+                let a8 = 0xff00 + self.fetch_byte() as u16;
+                self.mmu.write_byte(a8, self.a);
+                12
+            }
+            0xe1 => {
+                let poped = self.pop();
+                self.write_hl(poped);
+                12
+            }
+            0xe2 => {
+                self.mmu.write_byte(0xff00 + self.c as u16, self.a);
+                8
+            }
+            0xe5 => {
+                self.push(self.read_hl());
+                16
+            }
+            0xe6 => {
+                let d8 = self.fetch_byte();
+                self.and(d8);
+                8
+            }
+            0xe7 => {
+                self.rst(0x20);
+                16
+            }
+            0xe8 => {
+                todo!() // what to name function
+            }
+            0xe9 => {
+                self.pc = self.read_hl();
+                4
+            }
+            0xea => {
+                let a16 = self.fetch_word();
+                self.mmu.write_byte(a16, self.a);
+                16
+            }
+            0xee=> {
+                let d8 = self.fetch_byte();
+                self.xor(d8);
+                8
+            }
+            0xef => {
+                self.rst(0x28);
+                16
+            }
+            0xf0 => {
+                let a8 = 0xff00 + self.fetch_byte() as u16;
+                self.a = self.mmu.read_byte(a8);
+                12
+            }
+            0xf1 => {
+                let poped = self.pop();
+                self.write_af(poped);
+                12
+            }
+            0xf2 => {
+                self.a = self.mmu.read_byte(0xff00 + self.c as u16);
+                8
+            }
+            _ => 0,
+        }
+    }
+
+    fn cb(&mut self) -> u32 {
+        let opcode = self.fetch_byte();
+        match opcode {
+            0x00 => 0,
             _ => 0,
         }
     }
