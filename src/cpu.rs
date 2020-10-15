@@ -1505,8 +1505,7 @@ impl CPU {
                 8
             }
             0x46 => {
-                let val_at_addr_hl = self.mmu.read_byte(self.read_hl());
-                self.bit(val_at_addr_hl, 0);
+                self.bit_at_hl(0);
                 12
             }
             0x47 => {
@@ -1538,8 +1537,7 @@ impl CPU {
                 8
             }
             0x4e => {
-                let val_at_addr_hl = self.mmu.read_byte(self.read_hl());
-                self.bit(val_at_addr_hl, 1);
+                self.bit_at_hl(1);
                 12
             }
             0x4f => {
@@ -1571,8 +1569,7 @@ impl CPU {
                 8
             }
             0x56 => {
-                let val_at_addr_hl = self.mmu.read_byte(self.read_hl());
-                self.bit(val_at_addr_hl, 2);
+                self.bit_at_hl(2);
                 12
             }
             0x57 => {
@@ -1604,8 +1601,7 @@ impl CPU {
                 8
             }
             0x5e => {
-                let val_at_addr_hl = self.mmu.read_byte(self.read_hl());
-                self.bit(val_at_addr_hl, 3);
+                self.bit_at_hl(3);
                 12
             }
             0x5f => {
@@ -1637,8 +1633,7 @@ impl CPU {
                 8
             }
             0x66 => {
-                let val_at_addr_hl = self.mmu.read_byte(self.read_hl());
-                self.bit(val_at_addr_hl, 4);
+                self.bit_at_hl(4);
                 12
             }
             0x67 => {
@@ -1670,8 +1665,7 @@ impl CPU {
                 8
             }
             0x6e => {
-                let val_at_addr_hl = self.mmu.read_byte(self.read_hl());
-                self.bit(val_at_addr_hl, 5);
+                self.bit_at_hl(5);
                 12
             }
             0x6f => {
@@ -1703,8 +1697,7 @@ impl CPU {
                 8
             }
             0x76 => {
-                let val_at_addr_hl = self.mmu.read_byte(self.read_hl());
-                self.bit(val_at_addr_hl, 6);
+                self.bit_at_hl(6);
                 12
             }
             0x77 => {
@@ -1736,8 +1729,7 @@ impl CPU {
                 8
             }
             0x7e => {
-                let val_at_addr_hl = self.mmu.read_byte(self.read_hl());
-                self.bit(val_at_addr_hl, 7);
+                self.bit_at_hl(7);
                 12
             }
             0x7f => {
@@ -1769,8 +1761,8 @@ impl CPU {
                 8
             }
             0x86 => {
-                self.res_hl(0);
-                12
+                self.res_at_hl(0);
+                16
             }
             0x87 => {
                 self.a = self.res(self.a, 0);
@@ -1801,8 +1793,8 @@ impl CPU {
                 8
             }
             0x8e => {
-                self.res_hl(1);
-                12
+                self.res_at_hl(1);
+                16
             }
             0x8f => {
                 self.a = self.res(self.a, 1);
@@ -1833,8 +1825,8 @@ impl CPU {
                 8
             }
             0x96 => {
-                self.res_hl(2);
-                12
+                self.res_at_hl(2);
+                16
             }
             0x97 => {
                 self.a = self.res(self.a, 2);
@@ -1865,8 +1857,8 @@ impl CPU {
                 8
             }
             0x9e => {
-                self.res_hl(3);
-                12
+                self.res_at_hl(3);
+                16
             }
             0x9f => {
                 self.a = self.res(self.a, 3);
@@ -1897,8 +1889,8 @@ impl CPU {
                 8
             }
             0xa6 => {
-                self.res_hl(4);
-                12
+                self.res_at_hl(4);
+                16
             }
             0xa7 => {
                 self.a = self.res(self.a, 4);
@@ -1929,14 +1921,13 @@ impl CPU {
                 8
             }
             0xae => {
-                self.res_hl(5);
-                12
+                self.res_at_hl(5);
+                16
             }
             0xaf => {
                 self.a = self.res(self.a, 5);
                 8
             }
-            //
             0xb0 => {
                 self.b = self.res(self.b, 6);
                 8
@@ -1962,8 +1953,8 @@ impl CPU {
                 8
             }
             0xb6 => {
-                self.res_hl(6);
-                12
+                self.res_at_hl(6);
+                16
             }
             0xb7 => {
                 self.a = self.res(self.a, 6);
@@ -1994,12 +1985,72 @@ impl CPU {
                 8
             }
             0xbe => {
-                self.res_hl(7);
-                12
+                self.res_at_hl(7);
+                16
             }
             0xbf => {
                 self.a = self.res(self.a, 7);
                 8
+            }
+            0xc0 => {
+                self.b = self.set(self.b, 0);
+                8
+            }
+            0xc1 => {
+                self.c = self.set(self.c, 0);
+                8
+            }
+            0xc2 => {
+                self.d = self.set(self.d, 0);
+                8
+            }
+            0xc3 => {
+                self.e = self.set(self.e, 0);
+                8
+            }
+            0xc4 => {
+                self.h = self.set(self.h, 0);
+                8
+            }
+            0xc5 => {
+                self.l = self.set(self.l, 0);
+                8
+            }
+            0xc6 => {
+                self.set_at_hl(0);
+                16
+            }
+            0xc7 => {
+                self.a = self.set(self.a, 0);
+                8
+            }
+            0xc8 => {
+                self.b = self.set(self.b, 1);
+                8
+            }
+            0xc9 => {
+                self.c = self.set(self.c, 1);
+                8
+            }
+            0xca => {
+                self.d = self.set(self.d, 1);
+                8
+            }
+            0xcb => {
+                self.e = self.set(self.e, 1);
+                8
+            }
+            0xcc => {
+                self.h = self.set(self.h, 1);
+                8
+            }
+            0xcd => {
+                self.l = self.set(self.l, 1);
+                8
+            }
+            0xce => {
+                self.set_at_hl(1);
+                16
             }
             _ => 0,
         }
@@ -2105,21 +2156,33 @@ impl CPU {
         self.write_flag(Flag::H, true);
     }
 
+    fn bit_at_hl(&mut self, bit: u8){
+        let val_at_hl = self.mmu.read_byte(self.read_hl());
+        self.bit(val_at_hl, bit);
+    }
+
     fn res(&mut self, val: u8, bit: u8) -> u8 {
-        let mask = !(1 << 7);
+        let mask = !(1 << bit);
         val & mask
     }
 
-    fn res_hl(&mut self, bit: u8) {
+    fn res_at_hl(&mut self, bit: u8) {
         let addr = self.read_hl();
-        let val_at_addr_hl = self.mmu.read_byte(addr);
-        let val_res = self.res(val_at_addr_hl, bit);
+        let val_at_hl = self.mmu.read_byte(addr);
+        let val_res = self.res(val_at_hl, bit);
         self.mmu.write_byte(addr, val_res);
     }
 
     fn set(&mut self, val: u8, bit: u8) -> u8 {
-        let mask = 1 << 7;
+        let mask = 1 << bit;
         val | mask
+    }
+
+    fn set_at_hl(&mut self, bit: u8){
+        let addr = self.read_hl();
+        let val_at_hl = self.mmu.read_byte(addr);
+        let val_res = self.set(val_at_hl, bit);
+        self.mmu.write_byte(addr, val_res); 
     }
 
     fn add(&mut self, val: u8, carry: bool) {
