@@ -101,11 +101,11 @@ impl CPU {
         self.f & mask == mask
     }
 
-    fn raise_shift_and_rotate_flags(&mut self, result: u8, is_carry: bool){
+    fn raise_shift_and_rotate_flags(&mut self, result: u8, is_carry: bool) {
         self.write_flag(Flag::Z, result == 0);
         self.write_flag(Flag::N, false);
         self.write_flag(Flag::H, false);
-        self.write_flag(Flag::C, is_carry); 
+        self.write_flag(Flag::C, is_carry);
     }
 
     pub fn execute_opcode(&mut self) -> u32 {
@@ -1369,7 +1369,7 @@ impl CPU {
                 let val = self.mmu.read_byte(addr);
                 let shifted = self.sla(val);
                 self.mmu.write_byte(addr, shifted);
-                16  
+                16
             }
             0x27 => {
                 self.a = self.sla(self.a);
@@ -1404,7 +1404,7 @@ impl CPU {
                 let val = self.mmu.read_byte(addr);
                 let shifted = self.sra(val);
                 self.mmu.write_byte(addr, shifted);
-                16   
+                16
             }
             0x2f => {
                 self.a = self.sra(self.a);
@@ -1439,7 +1439,7 @@ impl CPU {
                 let val = self.mmu.read_byte(addr);
                 let swaped = self.swap(val);
                 self.mmu.write_byte(addr, swaped);
-                16   
+                16
             }
             0x37 => {
                 self.a = self.swap(self.a);
@@ -1474,7 +1474,7 @@ impl CPU {
                 let val = self.mmu.read_byte(addr);
                 let swaped = self.srl(val);
                 self.mmu.write_byte(addr, swaped);
-                16  
+                16
             }
             0x3f => {
                 self.a = self.srl(self.a);
@@ -1490,7 +1490,7 @@ impl CPU {
             }
             0x42 => {
                 self.bit(self.d, 0);
-                8   
+                8
             }
             0x43 => {
                 self.bit(self.e, 0);
@@ -1556,7 +1556,7 @@ impl CPU {
             }
             0x52 => {
                 self.bit(self.d, 2);
-                8   
+                8
             }
             0x53 => {
                 self.bit(self.e, 2);
@@ -1622,7 +1622,7 @@ impl CPU {
             }
             0x62 => {
                 self.bit(self.d, 4);
-                8   
+                8
             }
             0x63 => {
                 self.bit(self.e, 4);
@@ -1688,7 +1688,7 @@ impl CPU {
             }
             0x72 => {
                 self.bit(self.d, 6);
-                8   
+                8
             }
             0x73 => {
                 self.bit(self.e, 6);
@@ -1742,6 +1742,263 @@ impl CPU {
             }
             0x7f => {
                 self.bit(self.a, 7);
+                8
+            }
+            0x80 => {
+                self.b = self.res(self.b, 0);
+                8
+            }
+            0x81 => {
+                self.c = self.res(self.c, 0);
+                8
+            }
+            0x82 => {
+                self.d = self.res(self.d, 0);
+                8
+            }
+            0x83 => {
+                self.e = self.res(self.e, 0);
+                8
+            }
+            0x84 => {
+                self.h = self.res(self.h, 0);
+                8
+            }
+            0x85 => {
+                self.l = self.res(self.l, 0);
+                8
+            }
+            0x86 => {
+                self.res_hl(0);
+                12
+            }
+            0x87 => {
+                self.a = self.res(self.a, 0);
+                8
+            }
+            0x88 => {
+                self.b = self.res(self.b, 1);
+                8
+            }
+            0x89 => {
+                self.c = self.res(self.c, 1);
+                8
+            }
+            0x8a => {
+                self.d = self.res(self.d, 1);
+                8
+            }
+            0x8b => {
+                self.e = self.res(self.e, 1);
+                8
+            }
+            0x8c => {
+                self.h = self.res(self.h, 1);
+                8
+            }
+            0x8d => {
+                self.l = self.res(self.l, 1);
+                8
+            }
+            0x8e => {
+                self.res_hl(1);
+                12
+            }
+            0x8f => {
+                self.a = self.res(self.a, 1);
+                8
+            }
+            0x90 => {
+                self.b = self.res(self.b, 2);
+                8
+            }
+            0x91 => {
+                self.c = self.res(self.c, 2);
+                8
+            }
+            0x92 => {
+                self.d = self.res(self.d, 2);
+                8
+            }
+            0x93 => {
+                self.e = self.res(self.e, 2);
+                8
+            }
+            0x94 => {
+                self.h = self.res(self.h, 2);
+                8
+            }
+            0x95 => {
+                self.l = self.res(self.l, 2);
+                8
+            }
+            0x96 => {
+                self.res_hl(2);
+                12
+            }
+            0x97 => {
+                self.a = self.res(self.a, 2);
+                8
+            }
+            0x98 => {
+                self.b = self.res(self.b, 3);
+                8
+            }
+            0x99 => {
+                self.c = self.res(self.c, 3);
+                8
+            }
+            0x9a => {
+                self.d = self.res(self.d, 3);
+                8
+            }
+            0x9b => {
+                self.e = self.res(self.e, 3);
+                8
+            }
+            0x9c => {
+                self.h = self.res(self.h, 3);
+                8
+            }
+            0x9d => {
+                self.l = self.res(self.l, 3);
+                8
+            }
+            0x9e => {
+                self.res_hl(3);
+                12
+            }
+            0x9f => {
+                self.a = self.res(self.a, 3);
+                8
+            }
+            0xa0 => {
+                self.b = self.res(self.b, 4);
+                8
+            }
+            0xa1 => {
+                self.c = self.res(self.c, 4);
+                8
+            }
+            0xa2 => {
+                self.d = self.res(self.d, 4);
+                8
+            }
+            0xa3 => {
+                self.e = self.res(self.e, 4);
+                8
+            }
+            0xa4 => {
+                self.h = self.res(self.h, 4);
+                8
+            }
+            0xa5 => {
+                self.l = self.res(self.l, 4);
+                8
+            }
+            0xa6 => {
+                self.res_hl(4);
+                12
+            }
+            0xa7 => {
+                self.a = self.res(self.a, 4);
+                8
+            }
+            0xa8 => {
+                self.b = self.res(self.b, 5);
+                8
+            }
+            0xa9 => {
+                self.c = self.res(self.c, 5);
+                8
+            }
+            0xaa => {
+                self.d = self.res(self.d, 5);
+                8
+            }
+            0xab => {
+                self.e = self.res(self.e, 5);
+                8
+            }
+            0xac => {
+                self.h = self.res(self.h, 5);
+                8
+            }
+            0xad => {
+                self.l = self.res(self.l, 5);
+                8
+            }
+            0xae => {
+                self.res_hl(5);
+                12
+            }
+            0xaf => {
+                self.a = self.res(self.a, 5);
+                8
+            }
+            //
+            0xb0 => {
+                self.b = self.res(self.b, 6);
+                8
+            }
+            0xb1 => {
+                self.c = self.res(self.c, 6);
+                8
+            }
+            0xb2 => {
+                self.d = self.res(self.d, 6);
+                8
+            }
+            0xb3 => {
+                self.e = self.res(self.e, 6);
+                8
+            }
+            0xb4 => {
+                self.h = self.res(self.h, 6);
+                8
+            }
+            0xb5 => {
+                self.l = self.res(self.l, 6);
+                8
+            }
+            0xb6 => {
+                self.res_hl(6);
+                12
+            }
+            0xb7 => {
+                self.a = self.res(self.a, 6);
+                8
+            }
+            0xb8 => {
+                self.b = self.res(self.b, 7);
+                8
+            }
+            0xb9 => {
+                self.c = self.res(self.c, 7);
+                8
+            }
+            0xba => {
+                self.d = self.res(self.d, 7);
+                8
+            }
+            0xbb => {
+                self.e = self.res(self.e, 7);
+                8
+            }
+            0xbc => {
+                self.h = self.res(self.h, 7);
+                8
+            }
+            0xbd => {
+                self.l = self.res(self.l, 7);
+                8
+            }
+            0xbe => {
+                self.res_hl(7);
+                12
+            }
+            0xbf => {
+                self.a = self.res(self.a, 7);
                 8
             }
             _ => 0,
@@ -1841,21 +2098,28 @@ impl CPU {
         swaped
     }
 
-    fn bit(&mut self, val: u8, bit: u8){
+    fn bit(&mut self, val: u8, bit: u8) {
         let bit_set = val & (1 << bit) == 0;
         self.write_flag(Flag::Z, bit_set);
         self.write_flag(Flag::N, false);
         self.write_flag(Flag::H, true);
     }
 
-    fn res(&mut self, val:u8, bit: u8)-> u8{
+    fn res(&mut self, val: u8, bit: u8) -> u8 {
         let mask = !(1 << 7);
         val & mask
     }
 
-    fn set(&mut self, val:u8, bit: u8)-> u8{
+    fn res_hl(&mut self, bit: u8) {
+        let addr = self.read_hl();
+        let val_at_addr_hl = self.mmu.read_byte(addr);
+        let val_res = self.res(val_at_addr_hl, bit);
+        self.mmu.write_byte(addr, val_res);
+    }
+
+    fn set(&mut self, val: u8, bit: u8) -> u8 {
         let mask = 1 << 7;
-        val & mask
+        val | mask
     }
 
     fn add(&mut self, val: u8, carry: bool) {
