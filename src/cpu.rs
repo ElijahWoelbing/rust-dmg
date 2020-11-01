@@ -1,5 +1,5 @@
 use crate::mmu::MMU;
-pub struct CPU {
+pub struct CPU<> {
     pub a: u8,
     pub f: u8,
     pub b: u8,
@@ -21,8 +21,10 @@ enum Flag {
     Z = 0b10000000,
 }
 
+use Flag::{C,H,N,Z};
+
 impl CPU {
-    pub fn new() -> Self {
+    pub fn new(rom_path:&str) -> Self {
         Self {
             a: 0x01,
             f: 0xB0,
@@ -35,7 +37,7 @@ impl CPU {
             pc: 0x0100,
             sp: 0xfffe,
             ime: false,
-            mmu: MMU::new(),
+            mmu: MMU::new(rom_path)
         }
     }
 
@@ -102,10 +104,10 @@ impl CPU {
     }
 
     fn raise_shift_and_rotate_flags(&mut self, result: u8, is_carry: bool) {
-        self.write_flag(Flag::Z, result == 0);
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, false);
-        self.write_flag(Flag::C, is_carry);
+        self.write_flag(Z, result == 0);
+        self.write_flag(N, false);
+        self.write_flag(H, false);
+        self.write_flag(C, is_carry);
     }
 
     pub fn execute_opcode(&mut self) -> u32 {
@@ -139,7 +141,7 @@ impl CPU {
             }
             0x07 => {
                 self.a = self.rlc(self.a);
-                self.write_flag(Flag::Z, false);
+                self.write_flag(Z, false);
                 4
             }
             0x08 => {
@@ -173,7 +175,7 @@ impl CPU {
             }
             0xf => {
                 self.a = self.rrc(self.a);
-                self.write_flag(Flag::Z, false);
+                self.write_flag(Z, false);
                 4
             }
             0x10 => 4,
@@ -204,7 +206,7 @@ impl CPU {
             }
             0x17 => {
                 self.a = self.rl(self.a);
-                self.write_flag(Flag::Z, false);
+                self.write_flag(Z, false);
                 4
             }
             0x18 => {
@@ -237,11 +239,11 @@ impl CPU {
             }
             0x1f => {
                 self.a = self.rr(self.a);
-                self.write_flag(Flag::Z, false);
+                self.write_flag(Z, false);
                 4
             }
             0x20 => {
-                if !self.read_flag(Flag::Z) {
+                if !self.read_flag(Z) {
                     self.jr();
                     12
                 } else {
@@ -280,7 +282,7 @@ impl CPU {
                 4
             }
             0x28 => {
-                if self.read_flag(Flag::Z) {
+                if self.read_flag(Z) {
                     self.jr();
                     12
                 } else {
@@ -315,12 +317,12 @@ impl CPU {
             }
             0x2f => {
                 self.a = !self.a;
-                self.write_flag(Flag::H, true);
-                self.write_flag(Flag::N, true);
+                self.write_flag(H, true);
+                self.write_flag(N, true);
                 4
             }
             0x30 => {
-                if self.read_flag(Flag::C) {
+                if self.read_flag(C) {
                     self.jr();
                     12
                 } else {
@@ -361,13 +363,13 @@ impl CPU {
                 12
             }
             0x37 => {
-                self.write_flag(Flag::N, false);
-                self.write_flag(Flag::H, false);
-                self.write_flag(Flag::C, true);
+                self.write_flag(N, false);
+                self.write_flag(H, false);
+                self.write_flag(C, true);
                 4
             }
             0x38 => {
-                if self.read_flag(Flag::C) {
+                if self.read_flag(C) {
                     self.jr();
                     12
                 } else {
@@ -401,9 +403,9 @@ impl CPU {
                 8
             }
             0x3f => {
-                self.write_flag(Flag::N, false);
-                self.write_flag(Flag::H, false);
-                self.write_flag(Flag::C, !self.read_flag(Flag::C));
+                self.write_flag(N, false);
+                self.write_flag(H, false);
+                self.write_flag(C, !self.read_flag(C));
                 4
             }
             0x40 => {
@@ -916,7 +918,7 @@ impl CPU {
                 4
             }
             0xc0 => {
-                if !self.read_flag(Flag::Z) {
+                if !self.read_flag(Z) {
                     self.ret();
                     20
                 } else {
@@ -929,7 +931,7 @@ impl CPU {
                 12
             }
             0xc2 => {
-                if !self.read_flag(Flag::Z) {
+                if !self.read_flag(Z) {
                     self.jp();
                     16
                 } else {
@@ -941,7 +943,7 @@ impl CPU {
                 16
             }
             0xc4 => {
-                if !self.read_flag(Flag::Z) {
+                if !self.read_flag(Z) {
                     self.call();
                     24
                 } else {
@@ -962,7 +964,7 @@ impl CPU {
                 16
             }
             0xc8 => {
-                if self.read_flag(Flag::Z) {
+                if self.read_flag(Z) {
                     self.ret();
                     20
                 } else {
@@ -974,7 +976,7 @@ impl CPU {
                 16
             }
             0xca => {
-                if self.read_flag(Flag::Z) {
+                if self.read_flag(Z) {
                     self.jp();
                     16
                 } else {
@@ -983,7 +985,7 @@ impl CPU {
             }
             0xcb => self.execute_perfixed_opcode() + 4,
             0xcc => {
-                if self.read_flag(Flag::Z) {
+                if self.read_flag(Z) {
                     self.call();
                     24
                 } else {
@@ -1004,7 +1006,7 @@ impl CPU {
                 16
             }
             0xd0 => {
-                if !self.read_flag(Flag::C) {
+                if !self.read_flag(C) {
                     self.ret();
                     20
                 } else {
@@ -1017,7 +1019,7 @@ impl CPU {
                 12
             }
             0xd2 => {
-                if !self.read_flag(Flag::C) {
+                if !self.read_flag(C) {
                     self.jp();
                     16
                 } else {
@@ -1025,7 +1027,7 @@ impl CPU {
                 }
             }
             0xd4 => {
-                if !self.read_flag(Flag::C) {
+                if !self.read_flag(C) {
                     self.call();
                     24
                 } else {
@@ -1046,7 +1048,7 @@ impl CPU {
                 16
             }
             0xd8 => {
-                if self.read_flag(Flag::C) {
+                if self.read_flag(C) {
                     self.ret();
                     20
                 } else {
@@ -1059,7 +1061,7 @@ impl CPU {
                 16
             }
             0xda => {
-                if self.read_flag(Flag::C) {
+                if self.read_flag(C) {
                     self.jp();
                     16
                 } else {
@@ -1067,7 +1069,7 @@ impl CPU {
                 }
             }
             0xdc => {
-                if self.read_flag(Flag::C) {
+                if self.read_flag(C) {
                     self.call();
                     24
                 } else {
@@ -1472,8 +1474,8 @@ impl CPU {
             0x3e => {
                 let addr = self.read_hl();
                 let val = self.mmu.read_byte(addr);
-                let swaped = self.srl(val);
-                self.mmu.write_byte(addr, swaped);
+                let shifted = self.srl(val);
+                self.mmu.write_byte(addr, shifted);
                 16
             }
             0x3f => {
@@ -2052,7 +2054,204 @@ impl CPU {
                 self.set_at_hl(1);
                 16
             }
-            _ => 0,
+            0xcf => {
+                self.a = self.set(self.a, 1);
+                8
+            }
+            //
+            0xd0 => {
+                self.b = self.set(self.b, 2);
+                8
+            }
+            0xd1 => {
+                self.c = self.set(self.c, 2);
+                8
+            }
+            0xd2 => {
+                self.d = self.set(self.d, 2);
+                8
+            }
+            0xd3 => {
+                self.e = self.set(self.e, 2);
+                8
+            }
+            0xd4 => {
+                self.h = self.set(self.h, 2);
+                8
+            }
+            0xd5 => {
+                self.l = self.set(self.l, 2);
+                8
+            }
+            0xd6 => {
+                self.set_at_hl(2);
+                16
+            }
+            0xd7 => {
+                self.a = self.set(self.a, 2);
+                8
+            }
+            0xd8 => {
+                self.b = self.set(self.b, 3);
+                8
+            }
+            0xd9 => {
+                self.c = self.set(self.c, 3);
+                8
+            }
+            0xda => {
+                self.d = self.set(self.d, 3);
+                8
+            }
+            0xdb => {
+                self.e = self.set(self.e, 3);
+                8
+            }
+            0xdc => {
+                self.h = self.set(self.h, 3);
+                8
+            }
+            0xdd => {
+                self.l = self.set(self.l, 3);
+                8
+            }
+            0xde => {
+                self.set_at_hl(3);
+                16
+            }
+            0xdf => {
+                self.a = self.set(self.a, 3);
+                8
+            }
+            //
+            0xe0 => {
+                self.b = self.set(self.b, 4);
+                8
+            }
+            0xe1 => {
+                self.c = self.set(self.c, 4);
+                8
+            }
+            0xe2 => {
+                self.d = self.set(self.d, 4);
+                8
+            }
+            0xe3 => {
+                self.e = self.set(self.e, 4);
+                8
+            }
+            0xe4 => {
+                self.h = self.set(self.h, 4);
+                8
+            }
+            0xe5 => {
+                self.l = self.set(self.l, 4);
+                8
+            }
+            0xe6 => {
+                self.set_at_hl(4);
+                16
+            }
+            0xe7 => {
+                self.a = self.set(self.a, 4);
+                8
+            }
+            0xe8 => {
+                self.b = self.set(self.b, 5);
+                8
+            }
+            0xe9 => {
+                self.c = self.set(self.c, 5);
+                8
+            }
+            0xea => {
+                self.d = self.set(self.d, 5);
+                8
+            }
+            0xeb => {
+                self.e = self.set(self.e, 5);
+                8
+            }
+            0xec => {
+                self.h = self.set(self.h, 5);
+                8
+            }
+            0xed => {
+                self.l = self.set(self.l, 5);
+                8
+            }
+            0xee => {
+                self.set_at_hl(5);
+                16
+            }
+            0xef => {
+                self.a = self.set(self.a, 5);
+                8
+            }
+            0xf0 => {
+                self.b = self.set(self.b, 6);
+                8
+            }
+            0xf1 => {
+                self.c = self.set(self.c, 6);
+                8
+            }
+            0xf2 => {
+                self.d = self.set(self.d, 6);
+                8
+            }
+            0xf3 => {
+                self.e = self.set(self.e, 6);
+                8
+            }
+            0xf4 => {
+                self.h = self.set(self.h, 6);
+                8
+            }
+            0xf5 => {
+                self.l = self.set(self.l, 6);
+                8
+            }
+            0xf6 => {
+                self.set_at_hl(6);
+                16
+            }
+            0xf7 => {
+                self.a = self.set(self.a, 6);
+                8
+            }
+            0xf8 => {
+                self.b = self.set(self.b, 7);
+                8
+            }
+            0xf9 => {
+                self.c = self.set(self.c, 7);
+                8
+            }
+            0xfa => {
+                self.d = self.set(self.d, 7);
+                8
+            }
+            0xfb => {
+                self.e = self.set(self.e, 7);
+                8
+            }
+            0xfc => {
+                self.h = self.set(self.h, 7);
+                8
+            }
+            0xfd => {
+                self.l = self.set(self.l, 7);
+                8
+            }
+            0xfe => {
+                self.set_at_hl(7);
+                16
+            }
+            0xff => {
+                self.a = self.set(self.a, 7);
+                8
+            }
         }
     }
 
@@ -2069,17 +2268,17 @@ impl CPU {
 
     fn inc(&mut self, val: u8) -> u8 {
         let incermented = val.wrapping_add(1);
-        self.write_flag(Flag::Z, incermented == 0);
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, (incermented & 0xF) > 0x10);
+        self.write_flag(Z, incermented == 0);
+        self.write_flag(N, false);
+        self.write_flag(H, (incermented & 0xF) > 0x10);
         incermented
     }
 
     fn dec(&mut self, val: u8) -> u8 {
         let decremented = val.wrapping_sub(1);
-        self.write_flag(Flag::Z, decremented == 0);
-        self.write_flag(Flag::N, true);
-        self.write_flag(Flag::H, (val & 0xF) == 0);
+        self.write_flag(Z, decremented == 0);
+        self.write_flag(N, true);
+        self.write_flag(H, (val & 0xF) == 0);
         decremented
     }
 
@@ -2092,7 +2291,7 @@ impl CPU {
     }
 
     fn rl(&mut self, val: u8) -> u8 {
-        let rotated = self.rotate_left(val) | if self.read_flag(Flag::C) { 1 } else { 0 };
+        let rotated = self.rotate_left(val) | if self.read_flag(C) { 1 } else { 0 };
         let carry = val >= 0x80;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
@@ -2106,7 +2305,7 @@ impl CPU {
     }
 
     fn rr(&mut self, val: u8) -> u8 {
-        let rotated = self.rotate_left(val) | if self.read_flag(Flag::C) { 0x80 } else { 0 };
+        let rotated = self.rotate_left(val) | if self.read_flag(C) { 0x80 } else { 0 };
         let carry = val & 0x1 == 0x1;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
@@ -2142,21 +2341,21 @@ impl CPU {
 
     fn swap(&mut self, val: u8) -> u8 {
         let swaped = (val >> 4) | (val << 4);
-        self.write_flag(Flag::Z, swaped == 0);
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, false);
-        self.write_flag(Flag::C, false);
+        self.write_flag(Z, swaped == 0);
+        self.write_flag(N, false);
+        self.write_flag(H, false);
+        self.write_flag(C, false);
         swaped
     }
 
     fn bit(&mut self, val: u8, bit: u8) {
         let bit_set = val & (1 << bit) == 0;
-        self.write_flag(Flag::Z, bit_set);
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, true);
+        self.write_flag(Z, bit_set);
+        self.write_flag(N, false);
+        self.write_flag(H, true);
     }
 
-    fn bit_at_hl(&mut self, bit: u8){
+    fn bit_at_hl(&mut self, bit: u8) {
         let val_at_hl = self.mmu.read_byte(self.read_hl());
         self.bit(val_at_hl, bit);
     }
@@ -2178,65 +2377,65 @@ impl CPU {
         val | mask
     }
 
-    fn set_at_hl(&mut self, bit: u8){
+    fn set_at_hl(&mut self, bit: u8) {
         let addr = self.read_hl();
         let val_at_hl = self.mmu.read_byte(addr);
         let val_res = self.set(val_at_hl, bit);
-        self.mmu.write_byte(addr, val_res); 
+        self.mmu.write_byte(addr, val_res);
     }
 
     fn add(&mut self, val: u8, carry: bool) {
         let a = self.a;
-        let c = if carry && self.read_flag(Flag::C) {
+        let c = if carry && self.read_flag(C) {
             1
         } else {
             0
         };
         let sum = self.a.wrapping_add(val).wrapping_add(c);
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::Z, sum == 0);
-        self.write_flag(Flag::H, (a & 0xf) + (val & 0xf) + (c & 0xf) > 0xf);
-        self.write_flag(Flag::C, (a as u16) + (val as u16) + (c as u16) > 0xff);
+        self.write_flag(N, false);
+        self.write_flag(Z, sum == 0);
+        self.write_flag(H, (a & 0xf) + (val & 0xf) + (c & 0xf) > 0xf);
+        self.write_flag(C, (a as u16) + (val as u16) + (c as u16) > 0xff);
         self.a = sum;
     }
 
     fn sub(&mut self, val: u8, carry: bool) {
         let a = self.a;
-        let c = if carry && self.read_flag(Flag::C) {
+        let c = if carry && self.read_flag(C) {
             1
         } else {
             0
         };
         let sum = self.a.wrapping_sub(val).wrapping_sub(c);
-        self.write_flag(Flag::N, true);
-        self.write_flag(Flag::Z, sum == 0);
-        self.write_flag(Flag::H, (a & 0x0f) < (val & 0x0f) + c);
-        self.write_flag(Flag::C, (a as u16) < (val as u16) + (c as u16));
+        self.write_flag(N, true);
+        self.write_flag(Z, sum == 0);
+        self.write_flag(H, (a & 0x0f) < (val & 0x0f) + c);
+        self.write_flag(C, (a as u16) < (val as u16) + (c as u16));
         self.a = sum;
     }
 
     fn and(&mut self, val: u8) {
         self.a &= val;
-        self.write_flag(Flag::Z, self.a == 0);
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, true);
-        self.write_flag(Flag::C, false);
+        self.write_flag(Z, self.a == 0);
+        self.write_flag(N, false);
+        self.write_flag(H, true);
+        self.write_flag(C, false);
     }
 
     fn or(&mut self, val: u8) {
         self.a |= val;
-        self.write_flag(Flag::Z, self.a == 0);
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, false);
-        self.write_flag(Flag::C, false);
+        self.write_flag(Z, self.a == 0);
+        self.write_flag(N, false);
+        self.write_flag(H, false);
+        self.write_flag(C, false);
     }
 
     fn xor(&mut self, val: u8) {
         self.a ^= val;
-        self.write_flag(Flag::Z, self.a == 0);
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, false);
-        self.write_flag(Flag::C, false);
+        self.write_flag(Z, self.a == 0);
+        self.write_flag(N, false);
+        self.write_flag(H, false);
+        self.write_flag(C, false);
     }
 
     fn cp(&mut self, val: u8) {
@@ -2247,42 +2446,42 @@ impl CPU {
 
     fn add16(&mut self, val: u16) {
         let hl = self.read_hl();
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, (hl & 0xfff) + (val & 0xfff) > 0xfff);
-        self.write_flag(Flag::C, hl > 0xffff - val);
+        self.write_flag(N, false);
+        self.write_flag(H, (hl & 0xfff) + (val & 0xfff) > 0xfff);
+        self.write_flag(C, hl > 0xffff - val);
         self.write_hl(hl.wrapping_add(val));
     }
 
     fn add_sp_r8(&mut self) -> u16 {
         let sp = self.sp;
         let r8 = self.fetch_byte() as i8 as u16;
-        self.write_flag(Flag::Z, false);
-        self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, (sp & 0xf) + (r8 & 0xf) > 0xf);
-        self.write_flag(Flag::C, (sp & 0xff) + r8 > 0xff);
+        self.write_flag(Z, false);
+        self.write_flag(N, false);
+        self.write_flag(H, (sp & 0xf) + (r8 & 0xf) > 0xf);
+        self.write_flag(C, (sp & 0xff) + r8 > 0xff);
         sp.wrapping_add(r8)
     }
 
     fn daa(&mut self) {
         let mut a = self.a;
-        if !self.read_flag(Flag::N) {
-            if self.read_flag(Flag::C) || a > 0x99 {
+        if !self.read_flag(N) {
+            if self.read_flag(C) || a > 0x99 {
                 a += 0x60;
-                self.write_flag(Flag::C, true);
+                self.write_flag(C, true);
             }
-            if self.read_flag(Flag::H) || a & 0xf > 9 {
+            if self.read_flag(H) || a & 0xf > 9 {
                 a += 0x6;
             }
         } else {
-            if self.read_flag(Flag::C) {
+            if self.read_flag(C) {
                 a -= 0x60;
             }
-            if self.read_flag(Flag::H) {
+            if self.read_flag(H) {
                 a -= 0x6;
             }
         }
-        self.write_flag(Flag::Z, a == 0);
-        self.write_flag(Flag::H, false);
+        self.write_flag(Z, a == 0);
+        self.write_flag(H, false);
         self.a = a;
     }
 
