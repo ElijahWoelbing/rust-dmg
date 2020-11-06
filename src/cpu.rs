@@ -41,6 +41,10 @@ impl CPU {
         }
     }
 
+    pub fn tick(){
+
+    }
+
     fn read_af(&self) -> u16 {
         ((self.a as u16) << 8) | ((self.f & 0xf0) as u16)
     }
