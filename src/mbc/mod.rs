@@ -13,7 +13,6 @@ pub trait MBC {
 pub fn create_mbc(cart_path: &str) -> Box<dyn MBC> {
     let cart = fs::read(cart_path).expect("File not found");
     let mbc_type = cart[0x147];
-    print!("type is {}", &mbc_type);
     match mbc_type {
         0 => Box::new(mbc0::MBC0::new(cart)),
         1 => Box::new(mbc1::MBC1::new(cart)),

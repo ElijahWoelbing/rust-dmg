@@ -1,5 +1,6 @@
+use crate::helpers::{bit_is_set, reset_bit};
 use crate::mmu::MMU;
-pub struct CPU<> {
+pub struct CPU {
     pub a: u8,
     pub f: u8,
     pub b: u8,
@@ -21,10 +22,18 @@ enum Flag {
     Z = 0b10000000,
 }
 
-use Flag::{C,H,N,Z};
+enum InterruptVector {
+    VBlank = 0x40,
+    LCD = 0x48,
+    Timer = 0x50,
+    Serial = 0x58,
+    Joypad = 0x60,
+}
+
+use Flag::{C, H, N, Z};
 
 impl CPU {
-    pub fn new(rom_path:&str) -> Self {
+    pub fn new(rom_path: &str) -> Self {
         Self {
             a: 0x01,
             f: 0xB0,
@@ -37,12 +46,66 @@ impl CPU {
             pc: 0x0100,
             sp: 0xfffe,
             ime: false,
-            mmu: MMU::new(rom_path)
+            mmu: MMU::new(rom_path),
         }
     }
 
-    pub fn tick(){
+    pub fn tick(&mut self) {
+        let clocks_per_frame = 70224;
+        let mut clocks_this_update = 0;
+        while clocks_this_update < clocks_per_frame {
+            let cpu_clocks = self.execute_opcode();
+            clocks_this_update += cpu_clocks;
+            self.handle_interupts();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(16));
+        self.tick();
+    }
 
+    fn handle_interupts(&mut self) {
+        // ime master interrupt controller
+        if self.ime {
+            let pending_interrupts = self.mmu.interrupt_enable & self.mmu.interrupt_flag;
+            if pending_interrupts == 0 {
+                return 
+            }
+            let mut handled_interrupt;
+            // check pending interrupts execute interupt with highest pryority
+            handled_interrupt = self.handle_interupt(pending_interrupts, 0, InterruptVector::VBlank);
+            if handled_interrupt {
+                return 
+            }
+            handled_interrupt = self.handle_interupt(pending_interrupts, 1, InterruptVector::LCD);
+            if handled_interrupt {
+                return 
+            }
+            handled_interrupt = self.handle_interupt(pending_interrupts, 2, InterruptVector::Timer);
+            if handled_interrupt {
+                return 
+            }
+            handled_interrupt = self.handle_interupt(pending_interrupts, 3, InterruptVector::Serial);
+            if handled_interrupt {
+                return 
+            }
+            self.handle_interupt(pending_interrupts, 4, InterruptVector::Joypad);
+            // FIX
+            // how many cycle does this take?
+        }
+    }
+
+    fn handle_interupt(
+        &mut self,
+        pending_interrupts: u8,
+        interrupt_bit: u8,
+        vector: InterruptVector,
+    ) -> bool {
+        if bit_is_set(pending_interrupts, interrupt_bit) {
+            self.ime = false; // disable inturrupts
+            self.rst(vector as u16); // push pc on stack, jump to vector address
+            self.mmu.interrupt_flag = reset_bit(self.mmu.interrupt_flag, interrupt_bit); // reset if flag bit
+            return true
+        }
+        false
     }
 
     fn read_af(&self) -> u16 {
@@ -114,7 +177,7 @@ impl CPU {
         self.write_flag(C, is_carry);
     }
 
-    pub fn execute_opcode(&mut self) -> u32 {
+    fn execute_opcode(&mut self) -> u32 {
         let opcode: u8 = self.fetch_byte();
         match opcode {
             0x00 => 4,
@@ -1196,9 +1259,8 @@ impl CPU {
                 self.rst(0x38);
                 16
             }
-            _ => {
-                println!("invalid opcode");
-                0
+            n => {
+                panic!("invalid opcode {:#x}", n);
             }
         }
     }
@@ -2261,9 +2323,10 @@ impl CPU {
 
     fn fetch_byte(&mut self) -> u8 {
         let byte = self.mmu.read_byte(self.pc);
-        self.pc += 1;
+        self.pc +=1;
         byte
     }
+
     fn fetch_word(&mut self) -> u16 {
         let word = self.mmu.read_word(self.pc);
         self.pc += 2;
@@ -2390,11 +2453,7 @@ impl CPU {
 
     fn add(&mut self, val: u8, carry: bool) {
         let a = self.a;
-        let c = if carry && self.read_flag(C) {
-            1
-        } else {
-            0
-        };
+        let c = if carry && self.read_flag(C) { 1 } else { 0 };
         let sum = self.a.wrapping_add(val).wrapping_add(c);
         self.write_flag(N, false);
         self.write_flag(Z, sum == 0);
@@ -2405,11 +2464,7 @@ impl CPU {
 
     fn sub(&mut self, val: u8, carry: bool) {
         let a = self.a;
-        let c = if carry && self.read_flag(C) {
-            1
-        } else {
-            0
-        };
+        let c = if carry && self.read_flag(C) { 1 } else { 0 };
         let sum = self.a.wrapping_sub(val).wrapping_sub(c);
         self.write_flag(N, true);
         self.write_flag(Z, sum == 0);

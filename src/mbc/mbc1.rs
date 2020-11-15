@@ -12,8 +12,8 @@ pub struct MBC1 {
 impl MBC for MBC1 {
     fn read_rom(&self, addr: u16) -> u8 {
         match addr {
-            0x0000..=0x3fff => self.rom[addr as usize], // bank 00
-            0x4000..=0x7fff => self.rom[self.rom_bank * 0x4000 + (addr as usize - 0x4000)], // switchable bank
+            0x0000..=0x3fff => {self.rom[addr as usize]}, // bank 00
+            0x4000..=0x7fff => {self.rom[self.rom_bank * 0x4000 + (addr as usize - 0x4000)]}, // switchable bank
             _ => {
                 panic! {"address not used by mbc1"}
             }
