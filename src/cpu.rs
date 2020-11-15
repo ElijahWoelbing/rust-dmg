@@ -1,4 +1,4 @@
-use crate::helpers::{bit_is_set, reset_bit};
+use crate::utils::{bit_is_set, reset_bit};
 use crate::mmu::MMU;
 pub struct CPU {
     pub a: u8,
@@ -21,8 +21,8 @@ enum Flag {
     N = 0b01000000,
     Z = 0b10000000,
 }
-
-enum InterruptVector {
+#[derive(Copy, Clone)]
+enum Interrupt {
     VBlank = 0x40,
     LCD = 0x48,
     Timer = 0x50,
@@ -51,15 +51,16 @@ impl CPU {
     }
 
     pub fn tick(&mut self) {
-        let clocks_per_frame = 70224;
-        let mut clocks_this_update = 0;
-        while clocks_this_update < clocks_per_frame {
-            let cpu_clocks = self.execute_opcode();
-            clocks_this_update += cpu_clocks;
-            self.handle_interupts();
+        loop {
+            let clocks_per_frame = 70224;
+            let mut clocks_this_update = 0;
+            while clocks_this_update < clocks_per_frame {
+                let cpu_clocks = self.execute_opcode();
+                clocks_this_update += cpu_clocks;
+                self.handle_interupts();
+            }
+            std::thread::sleep(std::time::Duration::from_millis(16));
         }
-        std::thread::sleep(std::time::Duration::from_millis(16));
-        self.tick();
     }
 
     fn handle_interupts(&mut self) {
@@ -67,45 +68,50 @@ impl CPU {
         if self.ime {
             let pending_interrupts = self.mmu.interrupt_enable & self.mmu.interrupt_flag;
             if pending_interrupts == 0 {
-                return 
+                return;
             }
             let mut handled_interrupt;
             // check pending interrupts execute interupt with highest pryority
-            handled_interrupt = self.handle_interupt(pending_interrupts, 0, InterruptVector::VBlank);
+            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::VBlank);
             if handled_interrupt {
-                return 
+                return;
             }
-            handled_interrupt = self.handle_interupt(pending_interrupts, 1, InterruptVector::LCD);
+            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::LCD);
             if handled_interrupt {
-                return 
+                return;
             }
-            handled_interrupt = self.handle_interupt(pending_interrupts, 2, InterruptVector::Timer);
+            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::Timer);
             if handled_interrupt {
-                return 
+                return;
             }
-            handled_interrupt = self.handle_interupt(pending_interrupts, 3, InterruptVector::Serial);
+            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::Serial);
             if handled_interrupt {
-                return 
+                return;
             }
-            self.handle_interupt(pending_interrupts, 4, InterruptVector::Joypad);
+            self.handle_interupt(pending_interrupts, Interrupt::Joypad);
             // FIX
             // how many cycle does this take?
         }
     }
 
-    fn handle_interupt(
-        &mut self,
-        pending_interrupts: u8,
-        interrupt_bit: u8,
-        vector: InterruptVector,
-    ) -> bool {
-        if bit_is_set(pending_interrupts, interrupt_bit) {
+    fn handle_interupt(&mut self, pending_interrupts: u8, interrupt: Interrupt) -> bool {
+        if bit_is_set(pending_interrupts, interrupt as u8) {
             self.ime = false; // disable inturrupts
-            self.rst(vector as u16); // push pc on stack, jump to vector address
-            self.mmu.interrupt_flag = reset_bit(self.mmu.interrupt_flag, interrupt_bit); // reset if flag bit
-            return true
+            self.interrupt_routines(interrupt);
+            self.mmu.interrupt_flag = reset_bit(self.mmu.interrupt_flag, interrupt as u8); // reset if flag bit
+            return true;
         }
         false
+    }
+
+    fn interrupt_routines(&mut self, interrupt: Interrupt) {
+        match interrupt {
+            Interrupt::VBlank => self.rst(0x40),
+            Interrupt::LCD => self.rst(0x48),
+            Interrupt::Timer => self.rst(0x50),
+            Interrupt::Serial => self.rst(0x58),
+            Interrupt::Joypad => self.rst(0x60),
+        }
     }
 
     fn read_af(&self) -> u16 {
@@ -2323,7 +2329,7 @@ impl CPU {
 
     fn fetch_byte(&mut self) -> u8 {
         let byte = self.mmu.read_byte(self.pc);
-        self.pc +=1;
+        self.pc += 1;
         byte
     }
 

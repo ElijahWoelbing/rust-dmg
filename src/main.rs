@@ -2,8 +2,10 @@ mod cpu;
 mod mmu;
 mod gpu;
 mod mbc;
-mod io;
-mod helpers;
+mod timer;
+mod joypad;
+mod serial;
+mod utils;
 
 // use std::env;
 
