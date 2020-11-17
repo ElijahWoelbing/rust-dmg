@@ -13,6 +13,6 @@ mod utils;
 fn main(){
     // let args: Vec<String> = env::args().collect();
     // if args.len() < 2 {panic!("Missing file path")}
-    let mut cpu = cpu::CPU::new("./test_roms/cpu_instrs/individual/01-special.gb");
+    let mut cpu = cpu::CPU::new("./test_roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb");
     cpu.tick();
 }

@@ -1,5 +1,5 @@
-use crate::utils::{bit_is_set, reset_bit};
 use crate::mmu::MMU;
+use crate::utils::{bit_is_set, reset_bit};
 pub struct CPU {
     pub a: u8,
     pub f: u8,
@@ -57,41 +57,48 @@ impl CPU {
             while clocks_this_update < clocks_per_frame {
                 let cpu_clocks = self.execute_opcode();
                 clocks_this_update += cpu_clocks;
-                self.handle_interupts();
+                clocks_this_update += self.handle_interupts();
+                self.mmu.tick(clocks_this_update);
             }
             std::thread::sleep(std::time::Duration::from_millis(16));
         }
     }
 
-    fn handle_interupts(&mut self) {
+    fn handle_interupts(&mut self) -> u32 {
         // ime master interrupt controller
         if self.ime {
             let pending_interrupts = self.mmu.interrupt_enable & self.mmu.interrupt_flag;
             if pending_interrupts == 0 {
-                return;
+                return 0;
             }
             let mut handled_interrupt;
             // check pending interrupts execute interupt with highest pryority
             handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::VBlank);
             if handled_interrupt {
-                return;
+                print!("interrupt");
+                return 20;
             }
             handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::LCD);
             if handled_interrupt {
-                return;
+                return 20;
             }
             handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::Timer);
             if handled_interrupt {
-                return;
+                print!("interrupt");
+                return 20;
             }
             handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::Serial);
             if handled_interrupt {
-                return;
+                print!("interrupt");
+                return 20;
             }
-            self.handle_interupt(pending_interrupts, Interrupt::Joypad);
-            // FIX
-            // how many cycle does this take?
+            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::Joypad);
+            if handled_interrupt {
+                print!("interrupt");
+                return 20;
+            }
         }
+        0
     }
 
     fn handle_interupt(&mut self, pending_interrupts: u8, interrupt: Interrupt) -> bool {
