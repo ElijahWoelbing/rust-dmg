@@ -244,7 +244,7 @@ impl CPU {
             }
             0x21 => {
                 let d16 = self.fetch_word();
-                self.write_de(d16);
+                self.write_hl(d16);
                 12
             }
             0x22 => {
@@ -1521,7 +1521,7 @@ impl CPU {
         let val_incermented = val.wrapping_add(1);
         self.write_flag(Flag::Z, val_incermented == 0);
         self.write_flag(Flag::N, false);
-        self.write_flag(Flag::H, (val_incermented & 0xF) > 0x10);
+        self.write_flag(Flag::H, (val & 0xF) + 1 == 0x10);
         val_incermented
     }
 
