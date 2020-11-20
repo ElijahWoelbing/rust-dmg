@@ -20,7 +20,7 @@ pub struct MMU {
 
 impl MMU {
     pub fn new(cart_path: &str) -> Self {
-        Self {
+        let mut mmu = Self {
             wram: [0; WRAM_SIZE],
             hram: [0; HRAM_SIZE],
             mbc: mbc::create_mbc(cart_path),
@@ -30,7 +30,9 @@ impl MMU {
             timer: Timer::new(),
             joypad: Joypad::new(),
             serial: Serial::new(),
-        }
+        };
+        mmu.initialize_memory();
+        mmu  
     }
 
     pub fn read_byte(&self, addr: u16) -> u8 {
@@ -92,5 +94,27 @@ impl MMU {
     pub fn tick(&mut self, clocks: u32) {
         self.timer.tick(clocks);
         self.interrupt_flag |= self.timer.interrupt;
+    }
+    // inital state after checksum
+    fn initialize_memory(&mut self) {
+        self.write_byte(0xff10, 0x80); // NR10
+        self.write_byte(0xff11, 0xbf); // NR11
+        self.write_byte(0xff12, 0xf3); // NR12
+        self.write_byte(0xff14, 0xbf); // NR14
+        self.write_byte(0xff16, 0x3f); // NR21
+        self.write_byte(0xff19, 0xbf); // NR24
+        self.write_byte(0xff1a, 0x7f); // NR30
+        self.write_byte(0xff1b, 0xff); // NR31
+        self.write_byte(0xff1c, 0x9f); // NR32
+        self.write_byte(0xff1e, 0xbf); // NR34
+        self.write_byte(0xff20, 0xff); // NR41
+        self.write_byte(0xff23, 0xbf); // NR44
+        self.write_byte(0xff24, 0x77); // NR50
+        self.write_byte(0xff25, 0xf3); // NR51
+        self.write_byte(0xff26, 0xf1); // NR52
+        self.write_byte(0xff40, 0x91); // LCDC
+        self.write_byte(0xff47, 0xfc); // BGP
+        self.write_byte(0xff48, 0xff); // OBP0
+        self.write_byte(0xff49, 0xff); // OBP1
     }
 }

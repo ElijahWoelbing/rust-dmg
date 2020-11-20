@@ -1,4 +1,5 @@
 use crate::mmu::MMU;
+use crate::logger::Logger;
 use crate::utils::{bit_is_set, reset_bit};
 pub struct CPU {
     pub a: u8,
@@ -13,6 +14,7 @@ pub struct CPU {
     pc: u16,
     ime: bool,
     mmu: MMU,
+    logger:Logger
 }
 
 enum Flag {
@@ -47,6 +49,7 @@ impl CPU {
             sp: 0xfffe,
             ime: false,
             mmu: MMU::new(rom_path),
+            logger:Logger::new(20000)
         }
     }
 
@@ -57,7 +60,7 @@ impl CPU {
             while clocks_this_update < clocks_per_frame {
                 let cpu_clocks = self.execute_opcode();
                 clocks_this_update += cpu_clocks;
-                clocks_this_update += self.handle_interupts();
+                // clocks_this_update += self.handle_interupts();
                 self.mmu.tick(clocks_this_update);
             }
             std::thread::sleep(std::time::Duration::from_millis(16));
@@ -192,6 +195,7 @@ impl CPU {
 
     fn execute_opcode(&mut self) -> u32 {
         let opcode: u8 = self.fetch_byte();
+        self.logger.log(vec![opcode as u16, self.read_af(), self.read_bc(), self.read_de(), self.read_hl(), self.sp, self.pc]);
         match opcode {
             0x00 => 4,
             0x01 => {
@@ -333,7 +337,7 @@ impl CPU {
             }
             0x21 => {
                 let d16 = self.fetch_word();
-                self.write_de(d16);
+                self.write_hl(d16);
                 12
             }
             0x22 => {
@@ -999,7 +1003,7 @@ impl CPU {
             }
             0xc0 => {
                 if !self.read_flag(Z) {
-                    self.ret();
+                    self.pc = self.pop();
                     20
                 } else {
                     8
@@ -1045,14 +1049,14 @@ impl CPU {
             }
             0xc8 => {
                 if self.read_flag(Z) {
-                    self.ret();
+                    self.pc = self.pop();
                     20
                 } else {
                     8
                 }
             }
             0xc9 => {
-                self.ret();
+                self.pc = self.pop();
                 16
             }
             0xca => {
@@ -1087,7 +1091,7 @@ impl CPU {
             }
             0xd0 => {
                 if !self.read_flag(C) {
-                    self.ret();
+                    self.pc = self.pop();
                     20
                 } else {
                     8
@@ -1129,14 +1133,14 @@ impl CPU {
             }
             0xd8 => {
                 if self.read_flag(C) {
-                    self.ret();
+                    self.pc = self.pop();
                     20
                 } else {
                     8
                 }
             }
             0xd9 => {
-                self.ret();
+                self.pc = self.pop();
                 self.ime = true;
                 16
             }
@@ -2350,7 +2354,7 @@ impl CPU {
         let incermented = val.wrapping_add(1);
         self.write_flag(Z, incermented == 0);
         self.write_flag(N, false);
-        self.write_flag(H, (incermented & 0xF) > 0x10);
+        self.write_flag(H, (val & 0xf) + 1 == 0x10);
         incermented
     }
 
@@ -2358,7 +2362,7 @@ impl CPU {
         let decremented = val.wrapping_sub(1);
         self.write_flag(Z, decremented == 0);
         self.write_flag(N, true);
-        self.write_flag(H, (val & 0xF) == 0);
+        self.write_flag(H, (val & 0xf) == 0);
         decremented
     }
 
@@ -2567,7 +2571,7 @@ impl CPU {
     }
 
     fn call(&mut self) {
-        self.push(self.pc);
+        self.push(self.pc + 2);
         self.jp();
     }
 
@@ -2585,9 +2589,5 @@ impl CPU {
         let poped = self.mmu.read_word(self.sp);
         self.sp += 2;
         poped
-    }
-
-    fn ret(&mut self) {
-        self.pc = self.pop();
     }
 }
