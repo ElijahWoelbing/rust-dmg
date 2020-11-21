@@ -1,5 +1,5 @@
-use crate::mmu::MMU;
 use crate::logger::Logger;
+use crate::mmu::MMU;
 use crate::utils::{bit_is_set, reset_bit};
 pub struct CPU {
     pub a: u8,
@@ -13,8 +13,9 @@ pub struct CPU {
     sp: u16,
     pc: u16,
     ime: bool,
+    halted: bool,
     mmu: MMU,
-    logger:Logger
+    logger: Logger,
 }
 
 enum Flag {
@@ -48,8 +49,9 @@ impl CPU {
             pc: 0x0100,
             sp: 0xfffe,
             ime: false,
+            halted: false,
             mmu: MMU::new(rom_path),
-            logger:Logger::new(20000)
+            logger: Logger::new(20000),
         }
     }
 
@@ -58,44 +60,63 @@ impl CPU {
             let clocks_per_frame = 70224;
             let mut clocks_this_update = 0;
             while clocks_this_update < clocks_per_frame {
-                let cpu_clocks = self.execute_opcode();
+                // self.mmu.tick(clocks_this_update);
+
+                clocks_this_update += self.handle_interupts(); // returns cycles taken by interrupt execution
+
+                if self.halted {
+                    clocks_this_update += 4;
+                    continue;
+                }
+                let cpu_clocks = self.execute_opcode(); // returns cycles taken opcode execution
+                
                 clocks_this_update += cpu_clocks;
-                // clocks_this_update += self.handle_interupts();
-                self.mmu.tick(clocks_this_update);
             }
             std::thread::sleep(std::time::Duration::from_millis(16));
         }
     }
 
     fn handle_interupts(&mut self) -> u32 {
-        // ime master interrupt controller
-        if self.ime {
-            let pending_interrupts = self.mmu.interrupt_enable & self.mmu.interrupt_flag;
-            if pending_interrupts == 0 {
+        // if interrupt requested && halted
+        // ime set handles interrupt then continues execution
+        // if ime not set dont handle interrupt just continue execution
+        let interrupts_requested = self.mmu.interrupt_enable & self.mmu.interrupt_flag;
+
+        if self.halted && interrupts_requested > 0 {
+            self.halted = false; // exit halt mode
+            if !self.ime { // if ime if not set interrupt is not excuted return early and continue with insruction after halt
                 return 0;
             }
+        }
+
+        if interrupts_requested == 0 {
+            return 0;
+        }
+
+        if self.ime {
+
             let mut handled_interrupt;
             // check pending interrupts execute interupt with highest pryority
-            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::VBlank);
+            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::VBlank);
             if handled_interrupt {
                 print!("interrupt");
                 return 20;
             }
-            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::LCD);
+            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::LCD);
             if handled_interrupt {
                 return 20;
             }
-            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::Timer);
-            if handled_interrupt {
-                print!("interrupt");
-                return 20;
-            }
-            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::Serial);
+            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::Timer);
             if handled_interrupt {
                 print!("interrupt");
                 return 20;
             }
-            handled_interrupt = self.handle_interupt(pending_interrupts, Interrupt::Joypad);
+            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::Serial);
+            if handled_interrupt {
+                print!("interrupt");
+                return 20;
+            }
+            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::Joypad);
             if handled_interrupt {
                 print!("interrupt");
                 return 20;
@@ -104,8 +125,8 @@ impl CPU {
         0
     }
 
-    fn handle_interupt(&mut self, pending_interrupts: u8, interrupt: Interrupt) -> bool {
-        if bit_is_set(pending_interrupts, interrupt as u8) {
+    fn handle_interupt(&mut self, interrupts_requested: u8, interrupt: Interrupt) -> bool {
+        if bit_is_set(interrupts_requested, interrupt as u8) {
             self.ime = false; // disable inturrupts
             self.interrupt_routines(interrupt);
             self.mmu.interrupt_flag = reset_bit(self.mmu.interrupt_flag, interrupt as u8); // reset if flag bit
@@ -195,7 +216,7 @@ impl CPU {
 
     fn execute_opcode(&mut self) -> u32 {
         let opcode: u8 = self.fetch_byte();
-        self.logger.log(vec![opcode as u16, self.read_af(), self.read_bc(), self.read_de(), self.read_hl(), self.sp, self.pc]);
+        // self.logger.log(vec![opcode as u16, self.read_af(), self.read_bc(), self.read_de(), self.read_hl(), self.sp, self.pc, self.mmu.read_byte(0xdffd) as u16]);
         match opcode {
             0x00 => 4,
             0x01 => {
@@ -208,7 +229,7 @@ impl CPU {
                 8
             }
             0x03 => {
-                self.write_bc(self.read_bc() + 1);
+                self.write_bc(self.read_bc().wrapping_add(1));
                 8
             }
             0x04 => {
@@ -708,7 +729,10 @@ impl CPU {
                 self.mmu.write_byte(self.read_hl(), self.l);
                 8
             }
-            0x76 => 4,
+            0x76 => {
+                self.halted = true;
+                4
+            }
             0x77 => {
                 self.mmu.write_byte(self.read_hl(), self.a);
                 8
@@ -2581,8 +2605,8 @@ impl CPU {
     }
 
     fn push(&mut self, val: u16) {
-        self.mmu.write_word(self.sp, val);
         self.sp -= 2;
+        self.mmu.write_word(self.sp, val);
     }
 
     fn pop(&mut self) -> u16 {
