@@ -11,21 +11,21 @@ impl Serial {
         }
     }
 
-    pub fn read_byte(&self, addr: u16) -> u8 {
-        match addr {
+    pub fn rb(&self, address: u16) -> u8 {
+        match address {
             0xff01 => self.sb,
             0xff02 => self.sc,
             n => unreachable!("address {:#x} is not handled by serial", n)
         }
     }
 
-    pub fn write_byte(&mut self, addr: u16, val: u8){
-        if addr == 0xFF02 && val == 0x81 {
-            print!("{}", self.read_byte(0xff01) as char);
+    pub fn wb(&mut self, address: u16, value: u8){
+        if address == 0xFF02 && value == 0x81 {
+            print!("{}", self.rb(0xff01) as char);
         }
-        match addr {
-            0xff01 => self.sb = val,
-            0xff02 => self.sc = val,
+        match address {
+            0xff01 => self.sb = value,
+            0xff02 => self.sc = value,
             n => unreachable!("address {:#x} is not handled by serial", n)
         }
     }

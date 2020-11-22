@@ -57,7 +57,7 @@ impl CPU {
             let clocks_per_frame = 70224;
             let mut clocks_this_update = 0;
             while clocks_this_update < clocks_per_frame {
-                // self.mmu.tick(clocks_this_update);
+                self.mmu.tick(clocks_this_update);
 
                 clocks_this_update += self.handle_interupts(); // returns cycles taken by interrupt execution
 
@@ -123,10 +123,10 @@ impl CPU {
     }
 
     fn handle_interupt(&mut self, interrupts_requested: u8, interrupt: Interrupt) -> bool {
-        if bit_is_set(interrupts_requested, interrupt as u8) {
+        if interrupts_requested & interrupt as u8 == interrupt as u8 {
             self.ime = false; // disable inturrupts
             self.interrupt_routines(interrupt);
-            self.mmu.interrupt_flag = reset_bit(self.mmu.interrupt_flag, interrupt as u8); // reset if flag bit
+            self.mmu.interrupt_flag = self.mmu.interrupt_flag & !(interrupt as u8); // reset if flag bit
             return true;
         }
         false
@@ -157,24 +157,24 @@ impl CPU {
         ((self.h as u16) << 8) | (self.l as u16)
     }
 
-    fn write_af(&mut self, val: u16) {
-        self.a = (val >> 8) as u8;
-        self.f = (val & 0xf0) as u8; // only upper nibble used
+    fn write_af(&mut self, value: u16) {
+        self.a = (value >> 8) as u8;
+        self.f = (value & 0xf0) as u8; // only upper nibble used
     }
 
-    fn write_bc(&mut self, val: u16) {
-        self.b = (val >> 8) as u8;
-        self.c = (val & 0xff) as u8;
+    fn write_bc(&mut self, value: u16) {
+        self.b = (value >> 8) as u8;
+        self.c = (value & 0xff) as u8;
     }
 
-    fn write_de(&mut self, val: u16) {
-        self.d = (val >> 8) as u8;
-        self.e = (val & 0xff) as u8;
+    fn write_de(&mut self, value: u16) {
+        self.d = (value >> 8) as u8;
+        self.e = (value & 0xff) as u8;
     }
 
-    fn write_hl(&mut self, val: u16) {
-        self.h = (val >> 8) as u8;
-        self.l = (val & 0xff) as u8;
+    fn write_hl(&mut self, value: u16) {
+        self.h = (value >> 8) as u8;
+        self.l = (value & 0xff) as u8;
     }
 
     fn hli(&mut self) -> u16 {
@@ -221,7 +221,7 @@ impl CPU {
                 12
             }
             0x02 => {
-                self.mmu.write_byte(self.read_bc(), self.a);
+                self.mmu.wb(self.read_bc(), self.a);
                 8
             }
             0x03 => {
@@ -255,7 +255,7 @@ impl CPU {
                 8
             }
             0x0a => {
-                self.a = self.mmu.read_byte(self.read_bc());
+                self.a = self.mmu.rb(self.read_bc());
                 8
             }
             0x0b => {
@@ -286,7 +286,7 @@ impl CPU {
                 12
             }
             0x12 => {
-                self.mmu.write_byte(self.read_de(), self.a);
+                self.mmu.wb(self.read_de(), self.a);
                 8
             }
             0x13 => {
@@ -319,7 +319,7 @@ impl CPU {
                 8
             }
             0x1a => {
-                self.a = self.mmu.read_byte(self.read_de());
+                self.a = self.mmu.rb(self.read_de());
                 8
             }
             0x1b => {
@@ -358,8 +358,8 @@ impl CPU {
                 12
             }
             0x22 => {
-                let addr = self.hli();
-                self.mmu.write_byte(addr, self.a);
+                let address = self.hli();
+                self.mmu.wb(address, self.a);
                 8
             }
             0x23 => {
@@ -397,7 +397,7 @@ impl CPU {
             }
             0x2a => {
                 let hl = self.hli();
-                self.a = self.mmu.read_byte(hl);
+                self.a = self.mmu.rb(hl);
                 8
             }
             0x2b => {
@@ -436,8 +436,8 @@ impl CPU {
                 12
             }
             0x32 => {
-                let addr = self.hld();
-                self.mmu.write_byte(addr, self.a);
+                let address = self.hld();
+                self.mmu.wb(address, self.a);
                 8
             }
             0x33 => {
@@ -445,22 +445,22 @@ impl CPU {
                 8
             }
             0x34 => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let incremented = self.inc(val);
-                self.mmu.write_byte(addr, incremented);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let incremented = self.inc(value);
+                self.mmu.wb(address, incremented);
                 12
             }
             0x35 => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let decremented = self.dec(val);
-                self.mmu.write_byte(addr, decremented);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let decremented = self.dec(value);
+                self.mmu.wb(address, decremented);
                 12
             }
             0x36 => {
                 let d8 = self.fetch_byte();
-                self.mmu.write_byte(self.read_hl(), d8);
+                self.mmu.wb(self.read_hl(), d8);
                 12
             }
             0x37 => {
@@ -483,8 +483,8 @@ impl CPU {
                 8
             }
             0x3a => {
-                let addr = self.hld();
-                self.a = self.mmu.read_byte(addr);
+                let address = self.hld();
+                self.a = self.mmu.rb(address);
                 8
             }
             0x3b => {
@@ -534,7 +534,7 @@ impl CPU {
                 4
             }
             0x46 => {
-                self.b = self.mmu.read_byte(self.read_hl());
+                self.b = self.mmu.rb(self.read_hl());
                 8
             }
             0x47 => {
@@ -566,7 +566,7 @@ impl CPU {
                 4
             }
             0x4e => {
-                self.c = self.mmu.read_byte(self.read_hl());
+                self.c = self.mmu.rb(self.read_hl());
                 8
             }
             0x4f => {
@@ -598,7 +598,7 @@ impl CPU {
                 4
             }
             0x56 => {
-                self.d = self.mmu.read_byte(self.read_hl());
+                self.d = self.mmu.rb(self.read_hl());
                 8
             }
             0x57 => {
@@ -630,7 +630,7 @@ impl CPU {
                 4
             }
             0x5e => {
-                self.e = self.mmu.read_byte(self.read_hl());
+                self.e = self.mmu.rb(self.read_hl());
                 8
             }
             0x5f => {
@@ -662,7 +662,7 @@ impl CPU {
                 4
             }
             0x66 => {
-                self.h = self.mmu.read_byte(self.read_hl());
+                self.h = self.mmu.rb(self.read_hl());
                 8
             }
             0x67 => {
@@ -694,7 +694,7 @@ impl CPU {
                 4
             }
             0x6e => {
-                self.l = self.mmu.read_byte(self.read_hl());
+                self.l = self.mmu.rb(self.read_hl());
                 8
             }
             0x6f => {
@@ -702,27 +702,27 @@ impl CPU {
                 4
             }
             0x70 => {
-                self.mmu.write_byte(self.read_hl(), self.b);
+                self.mmu.wb(self.read_hl(), self.b);
                 8
             }
             0x71 => {
-                self.mmu.write_byte(self.read_hl(), self.c);
+                self.mmu.wb(self.read_hl(), self.c);
                 8
             }
             0x72 => {
-                self.mmu.write_byte(self.read_hl(), self.d);
+                self.mmu.wb(self.read_hl(), self.d);
                 8
             }
             0x73 => {
-                self.mmu.write_byte(self.read_hl(), self.e);
+                self.mmu.wb(self.read_hl(), self.e);
                 8
             }
             0x74 => {
-                self.mmu.write_byte(self.read_hl(), self.h);
+                self.mmu.wb(self.read_hl(), self.h);
                 8
             }
             0x75 => {
-                self.mmu.write_byte(self.read_hl(), self.l);
+                self.mmu.wb(self.read_hl(), self.l);
                 8
             }
             0x76 => {
@@ -730,7 +730,7 @@ impl CPU {
                 4
             }
             0x77 => {
-                self.mmu.write_byte(self.read_hl(), self.a);
+                self.mmu.wb(self.read_hl(), self.a);
                 8
             }
             0x78 => {
@@ -758,7 +758,7 @@ impl CPU {
                 4
             }
             0x7e => {
-                self.a = self.mmu.read_byte(self.read_hl());
+                self.a = self.mmu.rb(self.read_hl());
                 8
             }
             0x7f => {
@@ -790,7 +790,7 @@ impl CPU {
                 4
             }
             0x86 => {
-                self.add(self.mmu.read_byte(self.read_hl()), false);
+                self.add(self.mmu.rb(self.read_hl()), false);
                 8
             }
             0x87 => {
@@ -822,7 +822,7 @@ impl CPU {
                 4
             }
             0x8e => {
-                self.add(self.mmu.read_byte(self.read_hl()), true);
+                self.add(self.mmu.rb(self.read_hl()), true);
                 8
             }
             0x8f => {
@@ -854,7 +854,7 @@ impl CPU {
                 4
             }
             0x96 => {
-                self.sub(self.mmu.read_byte(self.read_hl()), false);
+                self.sub(self.mmu.rb(self.read_hl()), false);
                 8
             }
             0x97 => {
@@ -886,7 +886,7 @@ impl CPU {
                 4
             }
             0x9e => {
-                self.sub(self.mmu.read_byte(self.read_hl()), true);
+                self.sub(self.mmu.rb(self.read_hl()), true);
                 8
             }
             0x9f => {
@@ -918,7 +918,7 @@ impl CPU {
                 4
             }
             0xa6 => {
-                self.and(self.mmu.read_byte(self.read_hl()));
+                self.and(self.mmu.rb(self.read_hl()));
                 8
             }
             0xa7 => {
@@ -950,7 +950,7 @@ impl CPU {
                 4
             }
             0xae => {
-                self.xor(self.mmu.read_byte(self.read_hl()));
+                self.xor(self.mmu.rb(self.read_hl()));
                 8
             }
             0xaf => {
@@ -982,7 +982,7 @@ impl CPU {
                 4
             }
             0xb6 => {
-                self.or(self.mmu.read_byte(self.read_hl()));
+                self.or(self.mmu.rb(self.read_hl()));
                 8
             }
             0xb7 => {
@@ -1014,7 +1014,7 @@ impl CPU {
                 4
             }
             0xbe => {
-                self.cp(self.mmu.read_byte(self.read_hl()));
+                self.cp(self.mmu.rb(self.read_hl()));
                 8
             }
             0xbf => {
@@ -1191,7 +1191,7 @@ impl CPU {
             }
             0xe0 => {
                 let a8 = 0xff00 + self.fetch_byte() as u16;
-                self.mmu.write_byte(a8, self.a);
+                self.mmu.wb(a8, self.a);
                 12
             }
             0xe1 => {
@@ -1200,7 +1200,7 @@ impl CPU {
                 12
             }
             0xe2 => {
-                self.mmu.write_byte(0xff00 + self.c as u16, self.a);
+                self.mmu.wb(0xff00 + self.c as u16, self.a);
                 8
             }
             0xe5 => {
@@ -1226,7 +1226,7 @@ impl CPU {
             }
             0xea => {
                 let a16 = self.fetch_word();
-                self.mmu.write_byte(a16, self.a);
+                self.mmu.wb(a16, self.a);
                 16
             }
             0xee => {
@@ -1240,7 +1240,7 @@ impl CPU {
             }
             0xf0 => {
                 let a8 = 0xff00 + self.fetch_byte() as u16;
-                self.a = self.mmu.read_byte(a8);
+                self.a = self.mmu.rb(a8);
                 12
             }
             0xf1 => {
@@ -1249,7 +1249,7 @@ impl CPU {
                 12
             }
             0xf2 => {
-                self.a = self.mmu.read_byte(0xff00 + self.c as u16);
+                self.a = self.mmu.rb(0xff00 + self.c as u16);
                 8
             }
             0xf3 => {
@@ -1280,7 +1280,7 @@ impl CPU {
             }
             0xfa => {
                 let a16 = self.fetch_word();
-                self.a = self.mmu.read_byte(a16);
+                self.a = self.mmu.rb(a16);
                 16
             }
             0xfb => {
@@ -1330,10 +1330,10 @@ impl CPU {
                 8
             }
             0x06 => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let rotated = self.rlc(val);
-                self.mmu.write_byte(addr, rotated);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let rotated = self.rlc(value);
+                self.mmu.wb(address, rotated);
                 16
             }
             0x07 => {
@@ -1365,10 +1365,10 @@ impl CPU {
                 8
             }
             0x0e => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let rotated = self.rrc(val);
-                self.mmu.write_byte(addr, rotated);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let rotated = self.rrc(value);
+                self.mmu.wb(address, rotated);
                 16
             }
             0x0f => {
@@ -1400,10 +1400,10 @@ impl CPU {
                 8
             }
             0x16 => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let rotated = self.rl(val);
-                self.mmu.write_byte(addr, rotated);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let rotated = self.rl(value);
+                self.mmu.wb(address, rotated);
                 16
             }
             0x17 => {
@@ -1435,10 +1435,10 @@ impl CPU {
                 8
             }
             0x1e => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let rotated = self.rr(val);
-                self.mmu.write_byte(addr, rotated);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let rotated = self.rr(value);
+                self.mmu.wb(address, rotated);
                 16
             }
             0x1f => {
@@ -1470,10 +1470,10 @@ impl CPU {
                 8
             }
             0x26 => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let shifted = self.sla(val);
-                self.mmu.write_byte(addr, shifted);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let shifted = self.sla(value);
+                self.mmu.wb(address, shifted);
                 16
             }
             0x27 => {
@@ -1505,10 +1505,10 @@ impl CPU {
                 8
             }
             0x2e => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let shifted = self.sra(val);
-                self.mmu.write_byte(addr, shifted);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let shifted = self.sra(value);
+                self.mmu.wb(address, shifted);
                 16
             }
             0x2f => {
@@ -1540,10 +1540,10 @@ impl CPU {
                 8
             }
             0x36 => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let swaped = self.swap(val);
-                self.mmu.write_byte(addr, swaped);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let swaped = self.swap(value);
+                self.mmu.wb(address, swaped);
                 16
             }
             0x37 => {
@@ -1575,10 +1575,10 @@ impl CPU {
                 8
             }
             0x3e => {
-                let addr = self.read_hl();
-                let val = self.mmu.read_byte(addr);
-                let shifted = self.srl(val);
-                self.mmu.write_byte(addr, shifted);
+                let address = self.read_hl();
+                let value = self.mmu.rb(address);
+                let shifted = self.srl(value);
+                self.mmu.wb(address, shifted);
                 16
             }
             0x3f => {
@@ -2359,7 +2359,7 @@ impl CPU {
     }
 
     fn fetch_byte(&mut self) -> u8 {
-        let byte = self.mmu.read_byte(self.pc);
+        let byte = self.mmu.rb(self.pc);
         self.pc += 1;
         byte
     }
@@ -2370,81 +2370,81 @@ impl CPU {
         word
     }
 
-    fn inc(&mut self, val: u8) -> u8 {
-        let incermented = val.wrapping_add(1);
+    fn inc(&mut self, value: u8) -> u8 {
+        let incermented = value.wrapping_add(1);
         self.write_flag(Z, incermented == 0);
         self.write_flag(N, false);
-        self.write_flag(H, (val & 0xf) + 1 == 0x10);
+        self.write_flag(H, (value & 0xf) + 1 == 0x10);
         incermented
     }
 
-    fn dec(&mut self, val: u8) -> u8 {
-        let decremented = val.wrapping_sub(1);
+    fn dec(&mut self, value: u8) -> u8 {
+        let decremented = value.wrapping_sub(1);
         self.write_flag(Z, decremented == 0);
         self.write_flag(N, true);
-        self.write_flag(H, (val & 0xf) == 0);
+        self.write_flag(H, (value & 0xf) == 0);
         decremented
     }
 
-    fn rotate_left(&self, val: u8) -> u8 {
-        ((val << 1) | (val >> 7)) & 0xff
+    fn rotate_left(&self, value: u8) -> u8 {
+        ((value << 1) | (value >> 7)) & 0xff
     }
 
-    fn rotate_right(&self, val: u8) -> u8 {
-        ((val >> 1) | (val << 7)) & 0xff
+    fn rotate_right(&self, value: u8) -> u8 {
+        ((value >> 1) | (value << 7)) & 0xff
     }
 
-    fn rl(&mut self, val: u8) -> u8 {
-        let rotated = self.rotate_left(val) | if self.read_flag(C) { 1 } else { 0 };
-        let carry = val >= 0x80;
+    fn rl(&mut self, value: u8) -> u8 {
+        let rotated = self.rotate_left(value) | if self.read_flag(C) { 1 } else { 0 };
+        let carry = value >= 0x80;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
     }
 
-    fn rlc(&mut self, val: u8) -> u8 {
-        let rotated = self.rotate_left(val);
-        let carry = val >= 0x80;
+    fn rlc(&mut self, value: u8) -> u8 {
+        let rotated = self.rotate_left(value);
+        let carry = value >= 0x80;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
     }
 
-    fn rr(&mut self, val: u8) -> u8 {
-        let rotated = self.rotate_left(val) | if self.read_flag(C) { 0x80 } else { 0 };
-        let carry = val & 0x1 == 0x1;
+    fn rr(&mut self, value: u8) -> u8 {
+        let rotated = self.rotate_left(value) | if self.read_flag(C) { 0x80 } else { 0 };
+        let carry = value & 0x1 == 0x1;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
     }
 
-    fn rrc(&mut self, val: u8) -> u8 {
-        let rotated = self.rotate_right(val);
-        let carry = val & 0x1 == 0x1;
+    fn rrc(&mut self, value: u8) -> u8 {
+        let rotated = self.rotate_right(value);
+        let carry = value & 0x1 == 0x1;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
     }
 
-    fn sla(&mut self, val: u8) -> u8 {
-        let shifted = val << 1;
-        let carry = val >= 0x80;
+    fn sla(&mut self, value: u8) -> u8 {
+        let shifted = value << 1;
+        let carry = value >= 0x80;
         self.raise_shift_and_rotate_flags(shifted, carry);
         shifted
     }
 
-    fn srl(&mut self, val: u8) -> u8 {
-        let shifted = val >> 1;
-        let carry = val & 0x1 == 0x1;
+    fn srl(&mut self, value: u8) -> u8 {
+        let shifted = value >> 1;
+        let carry = value & 0x1 == 0x1;
         self.raise_shift_and_rotate_flags(shifted, carry);
         shifted
     }
 
-    fn sra(&mut self, val: u8) -> u8 {
-        let shifted = (val >> 1) | (val & 0x80);
-        let carry = val & 0x1 == 0x1;
+    fn sra(&mut self, value: u8) -> u8 {
+        let shifted = (value >> 1) | (value & 0x80);
+        let carry = value & 0x1 == 0x1;
         self.raise_shift_and_rotate_flags(shifted, carry);
         shifted
     }
 
-    fn swap(&mut self, val: u8) -> u8 {
-        let swaped = (val >> 4) | (val << 4);
+    fn swap(&mut self, value: u8) -> u8 {
+        let swaped = (value >> 4) | (value << 4);
         self.write_flag(Z, swaped == 0);
         self.write_flag(N, false);
         self.write_flag(H, false);
@@ -2452,100 +2452,100 @@ impl CPU {
         swaped
     }
 
-    fn bit(&mut self, val: u8, bit: u8) {
-        let bit_set = val & (1 << bit) == 0;
+    fn bit(&mut self, value: u8, bit: u8) {
+        let bit_set = value & (1 << bit) == 0;
         self.write_flag(Z, bit_set);
         self.write_flag(N, false);
         self.write_flag(H, true);
     }
 
     fn bit_at_hl(&mut self, bit: u8) {
-        let val_at_hl = self.mmu.read_byte(self.read_hl());
+        let val_at_hl = self.mmu.rb(self.read_hl());
         self.bit(val_at_hl, bit);
     }
 
-    fn res(&mut self, val: u8, bit: u8) -> u8 {
+    fn res(&mut self, value: u8, bit: u8) -> u8 {
         let mask = !(1 << bit);
-        val & mask
+        value & mask
     }
 
     fn res_at_hl(&mut self, bit: u8) {
-        let addr = self.read_hl();
-        let val_at_hl = self.mmu.read_byte(addr);
+        let address = self.read_hl();
+        let val_at_hl = self.mmu.rb(address);
         let val_res = self.res(val_at_hl, bit);
-        self.mmu.write_byte(addr, val_res);
+        self.mmu.wb(address, val_res);
     }
 
-    fn set(&mut self, val: u8, bit: u8) -> u8 {
+    fn set(&mut self, value: u8, bit: u8) -> u8 {
         let mask = 1 << bit;
-        val | mask
+        value | mask
     }
 
     fn set_at_hl(&mut self, bit: u8) {
-        let addr = self.read_hl();
-        let val_at_hl = self.mmu.read_byte(addr);
+        let address = self.read_hl();
+        let val_at_hl = self.mmu.rb(address);
         let val_res = self.set(val_at_hl, bit);
-        self.mmu.write_byte(addr, val_res);
+        self.mmu.wb(address, val_res);
     }
 
-    fn add(&mut self, val: u8, carry: bool) {
+    fn add(&mut self, value: u8, carry: bool) {
         let a = self.a;
         let c = if carry && self.read_flag(C) { 1 } else { 0 };
-        let sum = self.a.wrapping_add(val).wrapping_add(c);
+        let sum = self.a.wrapping_add(value).wrapping_add(c);
         self.write_flag(N, false);
         self.write_flag(Z, sum == 0);
-        self.write_flag(H, (a & 0xf) + (val & 0xf) + (c & 0xf) > 0xf);
-        self.write_flag(C, (a as u16) + (val as u16) + (c as u16) > 0xff);
+        self.write_flag(H, (a & 0xf) + (value & 0xf) + (c & 0xf) > 0xf);
+        self.write_flag(C, (a as u16) + (value as u16) + (c as u16) > 0xff);
         self.a = sum;
     }
 
-    fn sub(&mut self, val: u8, carry: bool) {
+    fn sub(&mut self, value: u8, carry: bool) {
         let a = self.a;
         let c = if carry && self.read_flag(C) { 1 } else { 0 };
-        let sum = self.a.wrapping_sub(val).wrapping_sub(c);
+        let sum = self.a.wrapping_sub(value).wrapping_sub(c);
         self.write_flag(N, true);
         self.write_flag(Z, sum == 0);
-        self.write_flag(H, (a & 0x0f) < (val & 0x0f) + c);
-        self.write_flag(C, (a as u16) < (val as u16) + (c as u16));
+        self.write_flag(H, (a & 0x0f) < (value & 0x0f) + c);
+        self.write_flag(C, (a as u16) < (value as u16) + (c as u16));
         self.a = sum;
     }
 
-    fn and(&mut self, val: u8) {
-        self.a &= val;
+    fn and(&mut self, value: u8) {
+        self.a &= value;
         self.write_flag(Z, self.a == 0);
         self.write_flag(N, false);
         self.write_flag(H, true);
         self.write_flag(C, false);
     }
 
-    fn or(&mut self, val: u8) {
-        self.a |= val;
+    fn or(&mut self, value: u8) {
+        self.a |= value;
         self.write_flag(Z, self.a == 0);
         self.write_flag(N, false);
         self.write_flag(H, false);
         self.write_flag(C, false);
     }
 
-    fn xor(&mut self, val: u8) {
-        self.a ^= val;
+    fn xor(&mut self, value: u8) {
+        self.a ^= value;
         self.write_flag(Z, self.a == 0);
         self.write_flag(N, false);
         self.write_flag(H, false);
         self.write_flag(C, false);
     }
 
-    fn cp(&mut self, val: u8) {
+    fn cp(&mut self, value: u8) {
         let a = self.a;
-        self.sub(val, false); // set flags
+        self.sub(value, false); // set flags
         self.a = a; // don't store the result
     }
 
-    fn add16(&mut self, val: u16) {
+    fn add16(&mut self, value: u16) {
         let hl = self.read_hl();
         self.write_flag(N, false);
-        self.write_flag(H, (hl & 0xfff) + (val & 0xfff) > 0xfff);
-        self.write_flag(C, hl > 0xffff - val);
-        self.write_hl(hl.wrapping_add(val));
+        self.write_flag(H, (hl & 0xfff) + (value & 0xfff) > 0xfff);
+        self.write_flag(C, hl > 0xffff - value);
+        self.write_hl(hl.wrapping_add(value));
     }
 
     fn add_sp_r8(&mut self) -> u16 {
@@ -2600,9 +2600,9 @@ impl CPU {
         self.pc = vector;
     }
 
-    fn push(&mut self, val: u16) {
+    fn push(&mut self, value: u16) {
         self.sp -= 2;
-        self.mmu.write_word(self.sp, val);
+        self.mmu.write_word(self.sp, value);
     }
 
     fn pop(&mut self) -> u16 {

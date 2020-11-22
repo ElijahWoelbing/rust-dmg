@@ -25,32 +25,32 @@ impl Timer {
         }
     }
 
-    pub fn read_byte(&self, addr: u16) -> u8 {
-        match addr {
+    pub fn rb(&self, address: u16) -> u8 {
+        match address {
             0xff04 => self.div,
             0xff05 => self.tima,
             0xff06 => self.tma,
             0xff07 => self.tac,
-            _=> unreachable!("address {} is not handled by timer", addr)
+            _=> unreachable!("address {} is not handled by timer", address)
         }
     }
 
-    pub fn write_byte(&mut self, addr: u16, val: u8) {
-        match addr {
+    pub fn wb(&mut self, address: u16, value: u8) {
+        match address {
             0xff04 => self.div = 0, // div is reset when writen to
-            0xff05 => self.tima = val,
-            0xff06 => self.tma = val,
+            0xff05 => self.tima = value,
+            0xff06 => self.tma = value,
             0xff07 => {
-                self.enabled = val & 0x4 == 0x4;
-                self.speed = match val & 0x3 {
+                self.enabled = value & 0x4 == 0x4;
+                self.speed = match value & 0x3 {
                     0 => 1024,
                     1 => 16,
                     2 => 64,
                     _ => 256
                 };
-                self.tac = val;
+                self.tac = value;
             },
-            _=> unreachable!("address {} is not handled by timer", addr)
+            _=> unreachable!("address {} is not handled by timer", address)
         }
     }
 

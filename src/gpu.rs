@@ -38,10 +38,10 @@ impl GPU {
         }
     }
 
-    pub fn read_byte(&self, addr: u16) -> u8 {
-        match addr {
-            0x8000..=0x9fff => self.vram[(addr - 0x8000) as usize],
-            0xfe00..=0xfe9f => self.oam_ram[(addr - 0xfe00) as usize],
+    pub fn rb(&self, address: u16) -> u8 {
+        match address {
+            0x8000..=0x9fff => self.vram[(address - 0x8000) as usize],
+            0xfe00..=0xfe9f => self.oam_ram[(address - 0xfe00) as usize],
             0xff40 => self.lcdc,
             0xff41 => self.lcds,
             0xff42 => self.scy,
@@ -58,22 +58,22 @@ impl GPU {
         }
     }
 
-    pub fn write_byte(&mut self, addr: u16, val: u8) {
-        match addr {
-            0x8000..=0x9fff => self.vram[(addr - 0x8000) as usize] = val,
-            0xfe00..=0xfe9f => self.oam_ram[(addr - 0xfe00) as usize] = val,
-            0xff40 => self.lcdc = val,
-            0xff41 => self.lcds = val,
-            0xff42 => self.scy = val,
-            0xff43 => self.scx = val,
-            0xff44 => self.ly = val,
-            0xff45 => self.lyc = val,
-            0xff46 => self.dma = val,
-            0xff47 => self.bgp = val,
-            0xff48 => self.obp0 = val,
-            0xff49 => self.obp1 = val,
-            0xff4a => self.wy = val,
-            0xff4b => self.wx = val,
+    pub fn wb(&mut self, address: u16, value: u8) {
+        match address {
+            0x8000..=0x9fff => self.vram[(address - 0x8000) as usize] = value,
+            0xfe00..=0xfe9f => self.oam_ram[(address - 0xfe00) as usize] = value,
+            0xff40 => self.lcdc = value,
+            0xff41 => self.lcds = value,
+            0xff42 => self.scy = value,
+            0xff43 => self.scx = value,
+            0xff44 => self.ly = value,
+            0xff45 => self.lyc = value,
+            0xff46 => self.dma = value,
+            0xff47 => self.bgp = value,
+            0xff48 => self.obp0 = value,
+            0xff49 => self.obp1 = value,
+            0xff4a => self.wy = value,
+            0xff4b => self.wx = value,
             n => panic!("address {:#x} is not handled by gpu", n),
         }
     }

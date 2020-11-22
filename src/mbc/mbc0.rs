@@ -5,19 +5,19 @@ pub struct MBC0 {
 }
 
 impl MBC for MBC0 {
-    fn read_rom(&self, addr: u16) -> u8 {
-        self.rom[addr as usize]
+    fn read_rom(&self, address: u16) -> u8 {
+        self.rom[address as usize]
     }
 
-    fn write_rom(&mut self, addr: u16, val: u8) { 
+    fn write_rom(&mut self, address: u16, value: u8) { 
         () // not used
     }
 
-    fn read_ram(&self, addr: u16) -> u8 {
+    fn read_ram(&self, address: u16) -> u8 {
         0 // not used    
     }
 
-    fn write_ram(&mut self, addr: u16, val: u8) {
+    fn write_ram(&mut self, address: u16, value: u8) {
         () // not used
     }
 }
