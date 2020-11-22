@@ -1,4 +1,3 @@
-use crate::logger::Logger;
 use crate::mmu::MMU;
 use crate::utils::{bit_is_set, reset_bit};
 pub struct CPU {
@@ -15,7 +14,6 @@ pub struct CPU {
     ime: bool,
     halted: bool,
     mmu: MMU,
-    logger: Logger,
 }
 
 enum Flag {
@@ -51,7 +49,6 @@ impl CPU {
             ime: false,
             halted: false,
             mmu: MMU::new(rom_path),
-            logger: Logger::new(20000),
         }
     }
 
@@ -216,7 +213,6 @@ impl CPU {
 
     fn execute_opcode(&mut self) -> u32 {
         let opcode: u8 = self.fetch_byte();
-        // self.logger.log(vec![opcode as u16, self.read_af(), self.read_bc(), self.read_de(), self.read_hl(), self.sp, self.pc, self.mmu.read_byte(0xdffd) as u16]);
         match opcode {
             0x00 => 4,
             0x01 => {
