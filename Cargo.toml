@@ -1,5 +1,5 @@
 [package]
-name = "tetanus"
+name = "rust-dmg"
 version = "0.1.0"
 authors = ["Elijah <woelbingelijah@gmail.com>"]
 edition = "2018"

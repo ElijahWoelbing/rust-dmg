@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tetanus"
+name = "rust-dmg"
 version = "0.1.0"
 dependencies = [
  "chrono",
