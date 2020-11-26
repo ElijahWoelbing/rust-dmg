@@ -7,11 +7,11 @@ impl Joypad {
         Self { p1: 0 }
     }
 
-    pub fn rb(&self) -> u8 {
+    pub fn read_byte(&self) -> u8 {
         self.p1
     }
 
-    pub fn wb(&mut self, value: u8){
+    pub fn write_byte(&mut self, value: u8){
         self.p1 = value;
     }
 }

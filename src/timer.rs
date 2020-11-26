@@ -25,7 +25,7 @@ impl Timer {
         }
     }
 
-    pub fn rb(&self, address: u16) -> u8 {
+    pub fn read_byte(&self, address: u16) -> u8 {
         match address {
             0xff04 => self.div,
             0xff05 => self.tima,
@@ -35,7 +35,7 @@ impl Timer {
         }
     }
 
-    pub fn wb(&mut self, address: u16, value: u8) {
+    pub fn write_byte(&mut self, address: u16, value: u8) {
         match address {
             0xff04 => self.div = 0, // div is reset when writen to
             0xff05 => self.tima = value,

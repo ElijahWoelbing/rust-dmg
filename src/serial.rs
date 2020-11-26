@@ -11,7 +11,7 @@ impl Serial {
         }
     }
 
-    pub fn rb(&self, address: u16) -> u8 {
+    pub fn read_byte(&self, address: u16) -> u8 {
         match address {
             0xff01 => self.sb,
             0xff02 => self.sc,
@@ -19,9 +19,9 @@ impl Serial {
         }
     }
 
-    pub fn wb(&mut self, address: u16, value: u8){
+    pub fn write_byte(&mut self, address: u16, value: u8){
         if address == 0xFF02 && value == 0x81 {
-            print!("{}", self.rb(0xff01) as char);
+            print!("{}", self.read_byte(0xff01) as char);
         }
         match address {
             0xff01 => self.sb = value,

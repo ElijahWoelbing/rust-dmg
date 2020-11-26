@@ -3,10 +3,10 @@ mod mbc1;
 use std::fs;
 
 pub trait MBC {
-    fn read_rom(&self, addr: u16) -> u8;
-    fn write_rom(&mut self, addr: u16, val: u8);
-    fn read_ram(&self, addr: u16) -> u8;
-    fn write_ram(&mut self, addr: u16, val: u8);
+    fn read_rom(&self, address: u16) -> u8;
+    fn write_rom(&mut self, address: u16, value: u8);
+    fn read_ram(&self, address: u16) -> u8;
+    fn write_ram(&mut self, address: u16, value: u8);
 }
 
 

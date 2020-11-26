@@ -38,7 +38,7 @@ impl GPU {
         }
     }
 
-    pub fn rb(&self, address: u16) -> u8 {
+    pub fn read_byte(&self, address: u16) -> u8 {
         match address {
             0x8000..=0x9fff => self.vram[(address - 0x8000) as usize],
             0xfe00..=0xfe9f => self.oam_ram[(address - 0xfe00) as usize],
@@ -58,7 +58,7 @@ impl GPU {
         }
     }
 
-    pub fn wb(&mut self, address: u16, value: u8) {
+    pub fn write_byte(&mut self, address: u16, value: u8) {
         match address {
             0x8000..=0x9fff => self.vram[(address - 0x8000) as usize] = value,
             0xfe00..=0xfe9f => self.oam_ram[(address - 0xfe00) as usize] = value,
