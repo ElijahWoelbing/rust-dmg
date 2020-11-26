@@ -2370,14 +2370,6 @@ impl CPU {
         decremented
     }
 
-    fn rotate_left(&self, value: u8) -> u8 {
-        ((value << 1) | (value >> 7)) & 0xff
-    }
-
-    fn rotate_right(&self, value: u8) -> u8 {
-        ((value >> 1) | (value << 7)) & 0xff
-    }
-
     fn rl(&mut self, value: u8) -> u8 {
         let rotated = (value << 1) | if self.read_flag(C) { 1 } else { 0 };
         let carry = value >= 0x80;
@@ -2386,7 +2378,7 @@ impl CPU {
     }
 
     fn rlc(&mut self, value: u8) -> u8 {
-        let rotated = self.rotate_left(value);
+        let rotated = (value << 1) | (value >> 7);
         let carry = value >= 0x80;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
@@ -2400,7 +2392,7 @@ impl CPU {
     }
 
     fn rrc(&mut self, value: u8) -> u8 {
-        let rotated = self.rotate_right(value);
+        let rotated = (value >> 1) | (value << 7);
         let carry = value & 0x1 == 0x1;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
