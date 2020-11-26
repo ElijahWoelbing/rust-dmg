@@ -5,7 +5,6 @@ mod mbc;
 mod timer;
 mod joypad;
 mod serial;
-mod utils;
 use std::env;
 
 
