@@ -6,6 +6,7 @@ mod timer;
 mod joypad;
 mod serial;
 mod utils;
+mod logger;
 use std::env;
 
 

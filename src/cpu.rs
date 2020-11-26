@@ -62,7 +62,7 @@ impl CPU {
                 } else {
                     clocks += 4;
                 }
-                self.mmu.tick(clocks); // should pass in clocks not clocks this update
+                self.mmu.tick(clocks);
                 clocks += self.handle_interupts();
                 clocks_this_update += clocks;
             }
@@ -78,7 +78,8 @@ impl CPU {
 
         if self.halted && interrupts_requested > 0 {
             self.halted = false; // exit halt mode
-            if !self.ime { // if ime if not set interrupt is not excuted return early and continue with insruction after halt
+            if !self.ime {
+                // if ime if not set interrupt is not excuted return early and continue with insruction after halt
                 return 0;
             }
         }
@@ -88,7 +89,6 @@ impl CPU {
         }
 
         if self.ime {
-
             let mut handled_interrupt;
             // check pending interrupts execute interupt with highest pryority
             handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::VBlank);
@@ -256,7 +256,7 @@ impl CPU {
                 8
             }
             0x0b => {
-                self.write_bc(self.read_bc() - 1);
+                self.write_bc(self.read_bc().wrapping_sub(1));
                 8
             }
             0x0c => {
@@ -287,7 +287,7 @@ impl CPU {
                 8
             }
             0x13 => {
-                self.write_de(self.read_de() + 1);
+                self.write_de(self.read_de().wrapping_add(1));
                 8
             }
             0x14 => {
@@ -320,7 +320,7 @@ impl CPU {
                 8
             }
             0x1b => {
-                self.write_de(self.read_de() - 1);
+                self.write_de(self.read_de().wrapping_sub(1));
                 8
             }
             0x1c => {
@@ -360,7 +360,7 @@ impl CPU {
                 8
             }
             0x23 => {
-                self.write_hl(self.read_hl() + 1);
+                self.write_hl(self.read_hl().wrapping_add(1));
                 8
             }
             0x24 => {
@@ -398,7 +398,7 @@ impl CPU {
                 8
             }
             0x2b => {
-                self.write_hl(self.read_hl() - 1);
+                self.write_hl(self.read_hl().wrapping_sub(1));
                 8
             }
             0x2c => {
@@ -420,7 +420,7 @@ impl CPU {
                 4
             }
             0x30 => {
-                if self.read_flag(C) {
+                if !self.read_flag(C) {
                     self.jr();
                     12
                 } else {
@@ -506,19 +506,17 @@ impl CPU {
                 self.write_flag(C, !self.read_flag(C));
                 4
             }
-            0x40 => {
-                4
-            }
+            0x40 => 4,
             0x41 => {
                 self.b = self.c;
                 4
             }
             0x42 => {
-                self.b = self.e;
+                self.b = self.d;
                 4
             }
             0x43 => {
-                self.b = self.h;
+                self.b = self.e;
                 4
             }
             0x44 => {
@@ -541,9 +539,7 @@ impl CPU {
                 self.c = self.b;
                 4
             }
-            0x49 => {
-                4
-            }
+            0x49 => 4,
             0x4a => {
                 self.c = self.d;
                 4
@@ -576,9 +572,7 @@ impl CPU {
                 self.d = self.c;
                 4
             }
-            0x52 => {
-                4
-            }
+            0x52 => 4,
             0x53 => {
                 self.d = self.e;
                 4
@@ -611,9 +605,7 @@ impl CPU {
                 self.e = self.d;
                 4
             }
-            0x5b => {
-                4
-            }
+            0x5b => 4,
             0x5c => {
                 self.e = self.h;
                 4
@@ -646,9 +638,7 @@ impl CPU {
                 self.h = self.e;
                 4
             }
-            0x64 => {
-                4
-            }
+            0x64 => 4,
             0x65 => {
                 self.h = self.l;
                 4
@@ -681,9 +671,7 @@ impl CPU {
                 self.l = self.h;
                 4
             }
-            0x6d => {
-                4
-            }
+            0x6d => 4,
             0x6e => {
                 self.l = self.mmu.read_byte(self.read_hl());
                 8
@@ -752,9 +740,7 @@ impl CPU {
                 self.a = self.mmu.read_byte(self.read_hl());
                 8
             }
-            0x7f => {
-                4
-            }
+            0x7f => 4,
             0x80 => {
                 self.add(self.b, false);
                 4
@@ -1029,6 +1015,7 @@ impl CPU {
                     self.jp();
                     16
                 } else {
+                    self.pc += 2;
                     12
                 }
             }
@@ -1041,6 +1028,7 @@ impl CPU {
                     self.call();
                     24
                 } else {
+                    self.pc += 2;
                     12
                 }
             }
@@ -1074,6 +1062,7 @@ impl CPU {
                     self.jp();
                     16
                 } else {
+                    self.pc += 2;
                     12
                 }
             }
@@ -1083,6 +1072,7 @@ impl CPU {
                     self.call();
                     24
                 } else {
+                    self.pc += 2;
                     12
                 }
             }
@@ -1117,6 +1107,7 @@ impl CPU {
                     self.jp();
                     16
                 } else {
+                    self.pc += 2;
                     12
                 }
             }
@@ -1125,6 +1116,7 @@ impl CPU {
                     self.call();
                     24
                 } else {
+                    self.pc += 2;
                     12
                 }
             }
@@ -1159,6 +1151,7 @@ impl CPU {
                     self.jp();
                     16
                 } else {
+                    self.pc += 2;
                     12
                 }
             }
@@ -1167,6 +1160,7 @@ impl CPU {
                     self.call();
                     24
                 } else {
+                    self.pc += 2;
                     12
                 }
             }
@@ -1347,11 +1341,11 @@ impl CPU {
                 8
             }
             0x0c => {
-                self.h = self.rr(self.h);
+                self.h = self.rrc(self.h);
                 8
             }
             0x0d => {
-                self.l = self.rr(self.l);
+                self.l = self.rrc(self.l);
                 8
             }
             0x0e => {
@@ -2385,7 +2379,7 @@ impl CPU {
     }
 
     fn rl(&mut self, value: u8) -> u8 {
-        let rotated = self.rotate_left(value) | if self.read_flag(C) { 1 } else { 0 };
+        let rotated = (value << 1) | if self.read_flag(C) { 1 } else { 0 };
         let carry = value >= 0x80;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
@@ -2399,7 +2393,7 @@ impl CPU {
     }
 
     fn rr(&mut self, value: u8) -> u8 {
-        let rotated = self.rotate_left(value) | if self.read_flag(C) { 0x80 } else { 0 };
+        let rotated = (value >> 1) | if self.read_flag(C) { 0x80 } else { 0 };
         let carry = value & 0x1 == 0x1;
         self.raise_shift_and_rotate_flags(rotated, carry);
         rotated
@@ -2551,18 +2545,18 @@ impl CPU {
         let mut a = self.a;
         if !self.read_flag(N) {
             if self.read_flag(C) || a > 0x99 {
-                a += 0x60;
+                a = a.wrapping_add(0x60);
                 self.write_flag(C, true);
             }
             if self.read_flag(H) || a & 0xf > 9 {
-                a += 0x6;
+                a = a.wrapping_add(0x6);
             }
         } else {
             if self.read_flag(C) {
-                a -= 0x60;
+                a = a.wrapping_sub(0x60);
             }
             if self.read_flag(H) {
-                a -= 0x6;
+                a = a.wrapping_sub(0x6);
             }
         }
         self.write_flag(Z, a == 0);
@@ -2570,9 +2564,10 @@ impl CPU {
         self.a = a;
     }
 
-    fn jr(&mut self) { // fix
+    fn jr(&mut self) {
+        // fix
         let r8 = self.fetch_byte() as i8;
-        self.pc = (self.pc as u32 as i32 + r8 as i32) as u16;
+        self.pc = ((self.pc as u32 as i32) + (r8 as i32)) as u16;
     }
 
     fn jp(&mut self) {
