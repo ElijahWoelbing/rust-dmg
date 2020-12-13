@@ -1,4 +1,4 @@
-use crate::gpu::GPU;
+use crate::ppu::PPU;
 use crate::joypad::Joypad;
 use crate::mbc;
 use crate::serial::Serial;
@@ -12,7 +12,7 @@ pub struct MMU {
     pub interrupt_enable: u8,
     pub interrupt_flag: u8,
     mbc: Box<dyn mbc::MBC>,
-    gpu: GPU,
+    pub ppu: PPU,
     timer: Timer,
     joypad: Joypad,
     serial: Serial,
@@ -26,7 +26,7 @@ impl MMU {
             mbc: mbc::create_mbc(cart_path),
             interrupt_enable: 0,
             interrupt_flag: 0,
-            gpu: GPU::new(),
+            ppu: PPU::new(),
             timer: Timer::new(),
             joypad: Joypad::new(),
             serial: Serial::new(),
@@ -38,11 +38,11 @@ impl MMU {
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {
             0x00..=0x7fff => self.mbc.read_rom(address), // 16kb rom bank 00
-            0x8000..=0x9fff => self.gpu.read_byte(address), // 16kb rom bank 01-nn
+            0x8000..=0x9fff => self.ppu.read_byte(address), // 16kb rom bank 01-nn
             0xa000..=0xbfff => self.mbc.read_ram(address), // external ram
             0xc000..=0xdfff => self.wram[(address - 0xc000) as usize], // work ram
             0xe000..=0xfdff => self.wram[(address - 0xe000) as usize], // echo ram
-            0xfe00..=0xfe9f => self.gpu.read_byte(address), // oam ram
+            0xfe00..=0xfe9f => self.ppu.read_byte(address), // oam ram
             0xfea0..=0xfeff => 0,                     // usable
             0xff00 => self.joypad.read_byte(),        // joypad
             0xff01..=0xff02 => self.serial.read_byte(address), // serial
@@ -51,7 +51,7 @@ impl MMU {
             0xff08..=0xff0e => 0,
             0xff0f => self.interrupt_flag, // interrupt flag
             0xff10..=0xff3f => 0,          // sound
-            0xff40..=0xff4b => self.gpu.read_byte(address), // lcd registers
+            0xff40..=0xff4b => self.ppu.read_byte(address), // lcd registers
             0xff4c..=0xff7f => 0,
             0xff80..=0xfffe => self.hram[(address - 0xff80) as usize], // high ram
             0xffff => self.interrupt_enable,
@@ -62,11 +62,11 @@ impl MMU {
     pub fn write_byte(&mut self, address: u16, value: u8) {
         match address {
             0x00..=0x7fff => self.mbc.write_rom(address, value), // 16kb rom bank 00
-            0x8000..=0x9fff => self.gpu.write_byte(address, value), // 16kb rom bank 01-nn
+            0x8000..=0x9fff => self.ppu.write_byte(address, value), // 16kb rom bank 01-nn
             0xa000..=0xbfff => self.mbc.write_ram(address, value), // external ram
             0xc000..=0xdfff => self.wram[(address - 0xc000) as usize] = value, // work ram
             0xe000..=0xfdff => self.wram[(address - 0xe000) as usize] = value, // echo ram
-            0xfe00..=0xfe9f => self.gpu.write_byte(address, value), // oam ram
+            0xfe00..=0xfe9f => self.ppu.write_byte(address, value), // oam ram
             0xfea0..=0xfeff => (),                          // usable
             0xff00 => self.joypad.write_byte(value),          // joypad
             0xff01..=0xff02 => self.serial.write_byte(address, value), // serial
@@ -75,7 +75,7 @@ impl MMU {
             0xff08..=0xff0e => (),                             // nothing
             0xff0f => self.interrupt_flag = value,               // interrupt flag
             0xff10..=0xff3f => (),                             // sound
-            0xff40..=0xff4b => self.gpu.write_byte(address, value), // lcd registers
+            0xff40..=0xff4b => self.ppu.write_byte(address, value), // lcd registers
             0xff4c..=0xff7f => (),                             // nothing
             0xff80..=0xfffe => self.hram[(address - 0xff80) as usize] = value, // high ram
             0xffff => self.interrupt_enable = value,
@@ -91,7 +91,10 @@ impl MMU {
         self.write_byte(address + 1, (value >> 8) as u8);
     }
 
-    pub fn tick(&mut self, clocks: u32) {
+    pub fn tick(&mut self, clocks: u32){
+        self.ppu.tick(clocks);
+        self.interrupt_flag |= self.ppu.status_interrupt;
+        self.interrupt_flag |= self.ppu.vblank_interrupt;
         self.timer.tick(clocks);
         self.interrupt_flag |= self.timer.interrupt;
     }

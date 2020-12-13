@@ -21,14 +21,6 @@ enum Flag {
     N = 0b01000000,
     Z = 0b10000000,
 }
-#[derive(Copy, Clone)]
-enum Interrupt {
-    VBlank = 0x40,
-    LCD = 0x48,
-    Timer = 0x50,
-    Serial = 0x58,
-    Joypad = 0x60,
-}
 
 use Flag::{C, H, N, Z};
 
@@ -51,92 +43,61 @@ impl CPU {
         }
     }
 
-    pub fn tick(&mut self) {
-        loop {
-            let clocks_per_frame = 70224;
-            let mut clocks_this_update = 0;
-            while clocks_this_update < clocks_per_frame {
-                let mut clocks = 0;
-                if !self.halted {
-                    clocks += self.execute_opcode(); // returns cycles taken opcode execution
-                } else {
-                    clocks += 4;
-                }
-                self.mmu.tick(clocks);
-                clocks += self.handle_interupts();
-                clocks_this_update += clocks;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(16));
+    pub fn do_cycle(&mut self) -> u32 {
+        let mut clocks = 0;
+        clocks += self.handle_interupts();
+        if !self.halted {
+            clocks += self.execute_opcode(); // returns cycles taken opcode execution
+        } else {
+            clocks += 4;
         }
+        self.mmu.tick(clocks);
+        clocks
+    }
+
+    pub fn get_screen_buffer(&self) -> [u32; 0x5a00] {
+        self.mmu.ppu.screen_data
     }
 
     fn handle_interupts(&mut self) -> u32 {
-        // if interrupt requested && halted
-        // ime set handles interrupt then continues execution
-        // if ime not set dont handle interrupt just continue execution
-        let interrupts_requested = self.mmu.interrupt_enable & self.mmu.interrupt_flag;
-
-        if self.halted && interrupts_requested > 0 {
-            self.halted = false; // exit halt mode
-            if !self.ime {
-                // if ime if not set interrupt is not excuted return early and continue with insruction after halt
-                return 0;
-            }
+        if self.ime == false && self.halted == false {
+            return 0;
         }
+
+        let interrupts_requested = self.mmu.interrupt_enable & self.mmu.interrupt_flag;
 
         if interrupts_requested == 0 {
             return 0;
         }
-
-        if self.ime {
-            let mut handled_interrupt;
-            // check pending interrupts execute interupt with highest pryority
-            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::VBlank);
-            if handled_interrupt {
-                print!("interrupt");
-                return 20;
-            }
-            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::LCD);
-            if handled_interrupt {
-                return 20;
-            }
-            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::Timer);
-            if handled_interrupt {
-                print!("interrupt");
-                return 20;
-            }
-            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::Serial);
-            if handled_interrupt {
-                print!("interrupt");
-                return 20;
-            }
-            handled_interrupt = self.handle_interupt(interrupts_requested, Interrupt::Joypad);
-            if handled_interrupt {
-                print!("interrupt");
-                return 20;
-            }
+        self.halted = false;
+        if self.ime == false {
+            return 0;
         }
-        0
+
+        for interrupt_bit_position in 0..6 {
+            if self.handle_interupt(interrupts_requested, interrupt_bit_position) {
+                break;
+            };
+        }
+        20
     }
 
-    fn handle_interupt(&mut self, interrupts_requested: u8, interrupt: Interrupt) -> bool {
-        if interrupts_requested & interrupt as u8 == interrupt as u8 {
+    fn handle_interupt(&mut self, interrupts_requested: u8, interrupt_bit_position: u8) -> bool {
+        let interrupt_bit = 1 << interrupt_bit_position;
+        if interrupts_requested & interrupt_bit == interrupt_bit {
             self.ime = false; // disable inturrupts
-            self.interrupt_routines(interrupt);
-            self.mmu.interrupt_flag = self.mmu.interrupt_flag & !(interrupt as u8); // reset if flag bit
+            self.mmu.interrupt_flag = self.mmu.interrupt_flag & !interrupt_bit; // reset if flag bit
+            match interrupt_bit_position {
+                0=> self.rst(0x40),
+                1 => self.rst(0x48),
+                2 => self.rst(0x50),
+                3 => self.rst(0x58),
+                4 => self.rst(0x60),
+                _ => unreachable!(),
+            }
             return true;
         }
         false
-    }
-
-    fn interrupt_routines(&mut self, interrupt: Interrupt) {
-        match interrupt {
-            Interrupt::VBlank => self.rst(0x40),
-            Interrupt::LCD => self.rst(0x48),
-            Interrupt::Timer => self.rst(0x50),
-            Interrupt::Serial => self.rst(0x58),
-            Interrupt::Joypad => self.rst(0x60),
-        }
     }
 
     fn read_af(&self) -> u16 {
