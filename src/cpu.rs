@@ -55,10 +55,6 @@ impl CPU {
         clocks
     }
 
-    pub fn get_screen_buffer(&self) -> [u32; 0x5a00] {
-        self.mmu.ppu.screen_data
-    }
-
     fn handle_interupts(&mut self) -> u32 {
         if self.ime == false && self.halted == false {
             return 0;

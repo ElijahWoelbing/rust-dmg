@@ -1,3 +1,4 @@
+use crate::lcd::LCD;
 use crate::utills::{check_bit, get_bit_value};
 const VRAM_SIZE: usize = 0x2000;
 const OAM_RAM_SIZE: usize = 0xa0;
@@ -30,8 +31,17 @@ pub struct PPU {
     dma: u8,
     mode: Mode,
     clocks: u32,
+    lcd: LCD,
     pub status_interrupt: u8,
     pub vblank_interrupt: u8,
+    display_enabled: bool,
+    window_tilemap: u16,
+    window_enabled: bool,
+    tilebase: u16,
+    background_tilemap: u16,
+    sprite_size: u8,
+    sprites_enabled: bool,
+    bg_win_priority: bool
 }
 
 impl PPU {
@@ -54,8 +64,17 @@ impl PPU {
             dma: 0,
             mode: OAMSearch,
             clocks: 0,
+            lcd: LCD::new(),
             status_interrupt: 0,
             vblank_interrupt: 0,
+            display_enabled: false,
+            window_tilemap: 0x9c00,
+            window_enabled: false,
+            tilebase: 0x8000,
+            background_tilemap: 0x9c00,
+            sprite_size: 8,
+            sprites_enabled: false,
+            bg_win_priority: false
         }
     }
 
@@ -63,7 +82,16 @@ impl PPU {
         match address {
             0x8000..=0x9fff => self.vram[(address - 0x8000) as usize], // TODO Restrict access in mode 3
             0xfe00..=0xfe9f => self.oam_ram[(address - 0xfe00) as usize], // TODO Restrict access in mode 2,3
-            0xff40 => self.lcdc,
+            0xff40 => {
+            (if self.display_enabled { 0x80 } else { 0 }) |
+            (if self.window_tilemap == 0x9C00 { 0x40 } else { 0 }) |
+            (if self.window_enabled { 0x20 } else { 0 }) |
+            (if self.tilebase == 0x8000 { 0x10 } else { 0 }) |
+            (if self.background_tilemap == 0x9C00 { 0x08 } else { 0 }) |
+            (if self.sprite_size == 16 { 0x04 } else { 0 }) |
+            (if self.sprites_enabled { 0x02 } else { 0 }) |
+            (if self.bg_win_priority { 0x01 } else { 0 })
+            }
             0xff41 => self.lcds,
             0xff42 => self.scy,
             0xff43 => self.scx,
@@ -83,7 +111,16 @@ impl PPU {
         match address {
             0x8000..=0x9fff => self.vram[(address - 0x8000) as usize] = value, // TODO
             0xfe00..=0xfe9f => self.oam_ram[(address - 0xfe00) as usize] = value, // TODO
-            0xff40 => self.lcdc = value,
+            0xff40 => {
+                self.display_enabled= value & 0x80 == 0x80;
+                self.window_tilemap = if value & 0x40 == 0x40 { 0x9C00 } else { 0x9800 };
+                self.window_enabled = value & 0x20 == 0x20;
+                self.tilebase = if value & 0x10 == 0x10 { 0x8000 } else { 0x9000 };
+                self.background_tilemap = if value & 0x08 == 0x08 { 0x9C00 } else { 0x9800 };
+                self.sprite_size = if value & 0x04 == 0x04 { 16 } else { 8 };
+                self.sprites_enabled = value & 0x02 == 0x02;
+                self.bg_win_priority = value & 0x01 == 0x01;
+            }
             0xff41 => self.lcds = value,
             0xff42 => self.scy = value,
             0xff43 => self.scx = value,
@@ -100,6 +137,7 @@ impl PPU {
     }
 
     pub fn tick(&mut self, clocks: u32) {
+        // TODO account for variable number of dot clocks
         // reset interrrupts
         self.status_interrupt = 0;
         self.vblank_interrupt = 0;
@@ -128,6 +166,10 @@ impl PPU {
                     if self.ly == 144 {
                         self.set_mode(VBlank);
                         self.vblank_interrupt = 0x1;
+                        self.lcd
+                        .window
+                        .update_with_buffer(&self.screen_data, SCREEN_WIDTH, SCREEN_HEIGHT)
+                        .unwrap();
                     } else {
                         self.set_mode(OAMSearch);
                     }
@@ -176,104 +218,48 @@ impl PPU {
     }
 
     fn buffer_scanline(&mut self) {
-        self.buffer_tiles();
+        self.scanline_background();
     }
 
-    fn buffer_tiles(&mut self) {
-        let ly = self.ly as u16;
-        let scx = self.scx as u16;
-        let scy = self.scy as u16;
-        let wx = self.wx.wrapping_sub(7) as u16;
-        let wy = self.wy as u16;
-
-
-        if check_bit(self.lcdc, 0) {
-            let mut using_window = false;
-
-            if check_bit(self.lcdc, 5) {
-                if wy <= ly {
-                    using_window = true;
-                }
-            }
-
-            // which tile data are we using?
-            let tile_base_pointer = match check_bit(self.lcdc, 4) {
-                true => 0x8000,
-                false => 0x9000,
+    fn scanline_background(&mut self) {
+        if !self.display_enabled {return}
+        let y = self.scy.wrapping_add(self.ly); // handle wraping?
+        let tile_row = (y / 8) as u16 * 32;
+        for pixel in 0..SCREEN_WIDTH {
+            let x = self.scx.wrapping_add(pixel as u8); //important handle wraping?
+            let tile_col = (x / 8)  as u16;
+            let tile_num = self.read_byte(self.background_tilemap + tile_row + tile_col);
+            let data_address = match self.tilebase {
+                0x8000 => {self.tilebase + (tile_num as u16 * 16)}
+                0x9000 => {(self.tilebase as i32 + (tile_num as i8 as i16 as i32 * 16)) as u16},
+                _ => unreachable!("not a valid tile base")
             };
 
-            // 32 * 32 byte gird, contains tile numbers
-            let background_map: u16;
-            
-            if using_window {
-                background_map = match check_bit(self.lcdc, 6) {
-                    true => 0x9C00,
-                    false => 0x9800,
-                };
-            } else {
-                background_map = match check_bit(self.lcdc, 3) {
-                    true => 0x9C00,
-                    false => 0x9800,
-                };
-            }
-
-            // current relitive scanline
-            let y_pos = match using_window {
-                true => wy + ly,
-                false => scy + ly,
-            };
-
-            // the row that the tile number is on
-            let tile_row = y_pos / 8;
-            for pixel in 0..160 {
-                // current pixel
-                let mut x_pos = pixel + scx;
-                if using_window {
-                    if pixel >= wx {
-                        x_pos = pixel - wx;
-                    }
-                }
-                // the column the tile number is on
-                let tile_col = x_pos / 8;
-
-                let tile_number_address = background_map + tile_row + tile_col;
-                // tile number can be signed or unsigned
-                let tile_number = self.read_byte(tile_number_address);
-                // pointer to first byte of tile
-                let tile_location = match tile_base_pointer {
-                    0x9000 => (tile_base_pointer as i32 + (tile_number as i8 as i16 as i32)) as u16,
-                    0x8000 => tile_base_pointer + (tile_number as u16 * 16),
-                    _ => unreachable!(),
-                };
-
-                // find the correct vertical line we're on of the
-                // tile to get the tile data
-                // from in memory
-                let line = (y_pos % 8) * 2;
-                let data1 = self.read_byte(tile_location + line);
-                let data2 = self.read_byte(tile_location + line + 1);
-
-                // For each line, the first byte defines the least significant bits of the color numbers
-                // for each pixel, and the second byte defines the upper bits of the color numbers.
-                // In either case, Bit 7 is the leftmost pixel, and Bit 0 the rightmost.
-                let mut color_bit = x_pos as i32 % 8;
-                color_bit -= 7;
-                color_bit *= -1;
-                let mut color_number = get_bit_value(data2, color_bit as u8) << 1;
-                color_number |= get_bit_value(data1, color_bit as u8);
-                let color = match self.map_color(color_number) {
-                    0 => 0xFFFFFF, // white
-                    1 => 0xD3D3D3, // light grey
-                    2 => 0xA9A9A9, // dark grey
-                    3 => 0x0, // black 
-                    _ => unreachable!()
-                };
-                self.screen_data[self.ly as usize + pixel as usize] = color;
-            }
+            let line = ((y % 8) * 2) as u16;
+            let line_byte1 = self.read_byte(data_address + line);
+            let line_byte2 = self.read_byte(data_address + line + 1);
+            let mut color_bit = (x % 8) as i8;
+            color_bit -= 7;
+            color_bit *= -1;
+            let mut color_number = get_bit_value(line_byte2, color_bit as u8) << 1;
+            color_number |= get_bit_value(line_byte1, color_bit as u8);
+            let color_number = self.map_color_pattel(color_number);
+            let color = self.get_color(color_number);
+            self.screen_data[self.ly as usize * 160 as usize + pixel as usize] = color;
         }
     }
 
-    fn map_color(&self, color_number: u8) -> u8 {
+    fn get_color(&self, color: u8) -> u32 {
+        match color {
+            0 => 0xFFFFFF, // white
+            1 => 0xD3D3D3, // light grey
+            2 => 0xA9A9A9, // dark grey
+            3 => 0x0, // black 
+            _ => unreachable!()
+        }
+    }
+
+    fn map_color_pattel(&self, color_number: u8) -> u8 {
         let mut hi_bit = 0;
         let mut lo_bit = 0;
 
@@ -300,7 +286,6 @@ impl PPU {
         let mut color = 0;
         color = get_bit_value(self.bgp, hi_bit) << 1;
         color |= get_bit_value(self.bgp, lo_bit);
-
         color
     }
 }
