@@ -37,8 +37,8 @@ impl MMU {
 
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {
-            0x00..=0x7fff => self.mbc.read_rom(address), // 16kb rom bank 00
-            0x8000..=0x9fff => self.ppu.read_byte(address), // 16kb rom bank 01-nn
+            0x00..=0x7fff => self.mbc.read_rom(address),
+            0x8000..=0x9fff => self.ppu.read_byte(address),
             0xa000..=0xbfff => self.mbc.read_ram(address), // external ram
             0xc000..=0xdfff => self.wram[(address - 0xc000) as usize], // work ram
             0xe000..=0xfdff => self.wram[(address - 0xe000) as usize], // echo ram
@@ -61,8 +61,8 @@ impl MMU {
 
     pub fn write_byte(&mut self, address: u16, value: u8) {
         match address {
-            0x00..=0x7fff => self.mbc.write_rom(address, value), // 16kb rom bank 00
-            0x8000..=0x9fff => self.ppu.write_byte(address, value), // 16kb rom bank 01-nn
+            0x00..=0x7fff => self.mbc.write_rom(address, value), // 32kb rom bank 00
+            0x8000..=0x9fff => self.ppu.write_byte(address, value),
             0xa000..=0xbfff => self.mbc.write_ram(address, value), // external ram
             0xc000..=0xdfff => self.wram[(address - 0xc000) as usize] = value, // work ram
             0xe000..=0xfdff => self.wram[(address - 0xe000) as usize] = value, // echo ram
@@ -75,7 +75,9 @@ impl MMU {
             0xff08..=0xff0e => (),                             // nothing
             0xff0f => self.interrupt_flag = value,               // interrupt flag
             0xff10..=0xff3f => (),                             // sound
-            0xff40..=0xff4b => self.ppu.write_byte(address, value), // lcd registers
+            0xff40..=0xff45 =>self.ppu.write_byte(address, value),
+            0xff46 => self.dma_transfer(value),
+            0xff47..=0xff4b => self.ppu.write_byte(address, value),
             0xff4c..=0xff7f => (),                             // nothing
             0xff80..=0xfffe => self.hram[(address - 0xff80) as usize] = value, // high ram
             0xffff => self.interrupt_enable = value,
@@ -120,4 +122,13 @@ impl MMU {
         self.write_byte(0xff48, 0xff); // OBP0
         self.write_byte(0xff49, 0xff); // OBP1
     }
+
+    fn dma_transfer(&mut self, data: u8) {
+        let address = (data as u16) << 8 ; 
+        for i in 0x0..0xA0
+        {
+          self.ppu.dma_transfer(i, self.read_byte(address+i));
+        }
+    }
+
 }

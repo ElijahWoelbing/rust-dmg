@@ -84,7 +84,7 @@ impl CPU {
             self.ime = false; // disable inturrupts
             self.mmu.interrupt_flag = self.mmu.interrupt_flag & !interrupt_bit; // reset if flag bit
             match interrupt_bit_position {
-                0=> self.rst(0x40),
+                0 => self.rst(0x40),
                 1 => self.rst(0x48),
                 2 => self.rst(0x50),
                 3 => self.rst(0x58),
