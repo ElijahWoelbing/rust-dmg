@@ -1,4 +1,3 @@
-use crate::lcd::LCD;
 use crate::utills::{check_bit, get_bit_value};
 const VRAM_SIZE: usize = 0x2000;
 const OAM_RAM_SIZE: usize = 0xa0;
@@ -14,10 +13,10 @@ enum Mode {
 use Mode::{HBlank, LCDTransfer, OAMSearch, VBlank};
 #[derive(PartialEq)]
 enum Color {
-    White = 0x9bbc0f,
-    LightGrey = 0x8bac0f,
-    DarkGrey = 0x306230,
-    Black = 0x0f380f,
+    White = 0xffffff,
+    LightGrey = 0xd3d3d3,
+    DarkGrey = 0xa9a9a9,
+    Black = 0x0,
 }
 
 use Color::{Black, DarkGrey, LightGrey, White};
@@ -26,7 +25,6 @@ pub struct PPU {
     vram: [u8; VRAM_SIZE],
     oam_ram: [u8; OAM_RAM_SIZE],
     pub screen_data: [u32; SCREEN_WIDTH * SCREEN_HEIGHT],
-    lcds: u8,
     scy: u8,
     scx: u8,
     ly: u8,
@@ -38,9 +36,7 @@ pub struct PPU {
     obp1: u8,
     mode: Mode,
     clocks: u32,
-    lcd: LCD,
-    pub status_interrupt: u8,
-    pub vblank_interrupt: u8,
+    pub interrupt: u8,
     display_enabled: bool,
     window_tilemap: u16,
     window_enabled: bool,
@@ -49,6 +45,11 @@ pub struct PPU {
     sprite_size: u8,
     sprites_enabled: bool,
     bg_win_priority: bool,
+    lyc_interrupt_enabled: bool,
+    oam_interrupt_enabled: bool,
+    vblank_interrupt_enabled: bool,
+    hblank_interrupt_enabled: bool,
+    pub updated: bool
 }
 
 impl PPU {
@@ -57,7 +58,6 @@ impl PPU {
             vram: [0; VRAM_SIZE],
             oam_ram: [0; OAM_RAM_SIZE],
             screen_data: [0; SCREEN_WIDTH * SCREEN_HEIGHT],
-            lcds: 0,
             scy: 0,
             scx: 0,
             ly: 0,
@@ -69,9 +69,7 @@ impl PPU {
             obp1: 0,
             mode: OAMSearch,
             clocks: 0,
-            lcd: LCD::new(),
-            status_interrupt: 0,
-            vblank_interrupt: 0,
+            interrupt: 0,
             display_enabled: false,
             window_tilemap: 0x1c00,
             window_enabled: false,
@@ -80,12 +78,17 @@ impl PPU {
             sprite_size: 8,
             sprites_enabled: false,
             bg_win_priority: false,
+            lyc_interrupt_enabled: false,
+            oam_interrupt_enabled: false,
+            vblank_interrupt_enabled: false,
+            hblank_interrupt_enabled: false,
+            updated: false
         }
     }
 
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {
-            0x8000..=0x9fff => self.vram[(address - 0x8000) as usize], // TODO Restrict access in mode 3
+            0x8000..=0x9fff => self.vram[(address - 0x8000) as usize],
             0xfe00..=0xfe9f => self.oam_ram[(address - 0xfe00) as usize],
             0xff40 => {
                 (if self.display_enabled { 0x80 } else { 0 })
@@ -105,7 +108,22 @@ impl PPU {
                     | (if self.sprites_enabled { 0x02 } else { 0 })
                     | (if self.bg_win_priority { 0x01 } else { 0 })
             }
-            0xff41 => self.lcds,
+            0xff41 => {
+                (if self.lyc_interrupt_enabled { 0x40 } else { 0 })
+                    | (if self.oam_interrupt_enabled { 0x20 } else { 0 })
+                    | (if self.vblank_interrupt_enabled {
+                        0x10
+                    } else {
+                        0
+                    })
+                    | (if self.hblank_interrupt_enabled {
+                        0x8
+                    } else {
+                        0
+                    })
+                    | (if self.ly == self.lyc { 0x4 } else { 0 })
+                    | (self.mode as u8)
+            }
             0xff42 => self.scy,
             0xff43 => self.scx,
             0xff44 => self.ly,
@@ -116,7 +134,7 @@ impl PPU {
             0xff49 => self.obp1,
             0xff4a => self.wy,
             0xff4b => self.wx,
-            n => panic!("address {:#x} is not handled by gpu", n),
+            _ => panic!("address {:#x} is not handled by gpu", address),
         }
     }
 
@@ -134,7 +152,12 @@ impl PPU {
                 self.sprites_enabled = value & 0x02 == 0x02;
                 self.bg_win_priority = value & 0x01 == 0x01;
             }
-            0xff41 => self.lcds = value,
+            0xff41 => {
+                self.lyc_interrupt_enabled = check_bit(value, 6);
+                self.oam_interrupt_enabled = check_bit(value, 5);
+                self.vblank_interrupt_enabled = check_bit(value, 4);
+                self.hblank_interrupt_enabled = check_bit(value, 3);
+            }
             0xff42 => self.scy = value,
             0xff43 => self.scx = value,
             0xff44 => self.ly = value,
@@ -152,8 +175,7 @@ impl PPU {
     pub fn tick(&mut self, clocks: u32) {
         // TODO account for variable number of dot clocks
         // reset interrrupts
-        self.status_interrupt = 0;
-        self.vblank_interrupt = 0;
+        self.interrupt = 0;
         self.clocks += clocks;
         match self.mode {
             // 80 dots
@@ -168,7 +190,6 @@ impl PPU {
                 if self.clocks >= 172 {
                     self.clocks -= 172;
                     self.set_mode(HBlank);
-                    self.buffer_scanline();
                 }
             }
             // 85 to 208 dots
@@ -178,11 +199,6 @@ impl PPU {
                     self.update_ly();
                     if self.ly == 144 {
                         self.set_mode(VBlank);
-                        self.vblank_interrupt = 0x1;
-                        self.lcd
-                            .window
-                            .update_with_buffer(&self.screen_data, SCREEN_WIDTH, SCREEN_HEIGHT)
-                            .unwrap();
                     } else {
                         self.set_mode(OAMSearch);
                     }
@@ -193,41 +209,41 @@ impl PPU {
                 if self.clocks >= 456 {
                     self.clocks -= 456;
                     self.update_ly();
-                    if self.ly > 153 {
-                        self.ly = 0;
-                        self.set_mode(OAMSearch);
-                    }
                 }
             }
         }
     }
 
     fn update_ly(&mut self) {
-        self.ly += 1;
+        self.ly = (self.ly + 1) % 154;
+        if self.ly == 0 {
+            self.set_mode(OAMSearch)
+        };
         if self.ly == self.lyc {
-            self.lcds |= 0x4; // set coincidence Flag
-            if check_bit(self.lcds, 6) {
-                // is coincidence interrupt enabled
-                self.status_interrupt = 0x2;
+            if self.lyc_interrupt_enabled {
+                self.interrupt |= 0x2;
             }
-        } else {
-            self.lcds &= 0xfb; // reset coincidence flag
         }
     }
 
     fn set_mode(&mut self, mode: Mode) {
         self.mode = mode;
-        self.lcds &= 0xfc;
-        self.lcds |= mode as u8;
+        if match mode {
+            HBlank => {
+                self.buffer_scanline();
+                self.hblank_interrupt_enabled
+            }
+            VBlank => {
+                self.updated = true;
+                self.interrupt |= 0x1;
+                self.vblank_interrupt_enabled
+            }
+            OAMSearch => self.oam_interrupt_enabled,
 
-        match mode {
-            HBlank => self.lcds |= 0x8,
-            VBlank => self.lcds |= 0x10,
-            OAMSearch => self.lcds |= 0x20,
-            LCDTransfer => return,
+            LCDTransfer => false,
+        } {
+            self.interrupt |= 0x2;
         }
-        // raise status fl in if
-        self.status_interrupt = 0x2;
     }
 
     fn buffer_scanline(&mut self) {

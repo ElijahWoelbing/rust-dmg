@@ -12,7 +12,7 @@ pub struct CPU {
     pc: u16,
     ime: bool,
     halted: bool,
-    mmu: MMU,
+    pub mmu: MMU,
 }
 
 enum Flag {

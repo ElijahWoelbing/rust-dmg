@@ -14,7 +14,7 @@ pub struct MMU {
     mbc: Box<dyn mbc::MBC>,
     pub ppu: PPU,
     timer: Timer,
-    joypad: Joypad,
+    pub joypad: Joypad,
     serial: Serial,
 }
 
@@ -95,10 +95,10 @@ impl MMU {
 
     pub fn tick(&mut self, clocks: u32){
         self.ppu.tick(clocks);
-        self.interrupt_flag |= self.ppu.status_interrupt;
-        self.interrupt_flag |= self.ppu.vblank_interrupt;
+        self.interrupt_flag |= self.ppu.interrupt;
         self.timer.tick(clocks);
         self.interrupt_flag |= self.timer.interrupt;
+        self.interrupt_flag |= self.joypad.interrupt;
     }
     // inital state after checksum
     fn initialize_memory(&mut self) {
