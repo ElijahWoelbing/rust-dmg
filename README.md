@@ -18,4 +18,6 @@ working but currently still in development
 - save/load game files
 - add a clean interface for loading roms
 ### Photos
-![alt text](https://imgur.com/eRbvZ7f)
+![tetris image](https://github.com/ElijahWoelbing/rust-dmg/blob/master/tetris.png)
+![mario image](https://github.com/ElijahWoelbing/rust-dmg/blob/master/mario.png)
+![kirby image](https://github.com/ElijahWoelbing/rust-dmg/blob/master/kdl.png)
